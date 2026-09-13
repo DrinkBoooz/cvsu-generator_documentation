@@ -55,4 +55,5 @@ Run **`install_trusted_publisher.bat`** as Administrator once on your computer. 
 
 ### 3. File in use or locked
 - **Cause**: An output Word document or Excel sheet is currently open in Microsoft Office.
-- **Fix**: Close Microsoft Word or Excel before re-running generation.
+- **Fix**: Close Microsoft Word or Excel before re-running generation. 
+- **Under the Hood**: The application engine incorporates a 5-attempt exponential backoff retry policy for reading `.docx` templates (introduced in Commit `9c98065`). This allows the generator to gracefully recover from transient file locks caused by OS indexing or antivirus scans, but a persistent lock by an open Microsoft Word window will still require user intervention.

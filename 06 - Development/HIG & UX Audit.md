@@ -48,7 +48,14 @@ Related notes:
 | **Non-blocking Notifications** | "Toast Notifications" (Commit `89cddfd`) | `app.js` `showToast` method rendering transient overlay messages. | **Present**. Non-critical feedback (e.g., file selected) does not block workflow. |
 | **Generation Progress** | "Animated status indicators" (Commit `af78ff9`) | `process_all` yielding tokens to `window.onGenerationProgress` updating DOM widths. | **Present**. Real-time linear progress bar accurately reflects backend state. |
 
-## 4. Accessibility (A11y)
+## 4. Forms & Input
+
+| Aspect | Historical Intent | Evidence in Code | Current State |
+| :--- | :--- | :--- | :--- |
+| **Validation & Error Handling** | "Strict input validations" | HTML5 `required` attributes and JavaScript form validation before stepper progression. | **Present**. Users cannot advance to generation phases without valid input paths and configurations. |
+| **Labels & Feedback** | "Clear field labels" | `<label>` elements tied explicitly to `id` attributes. | **Present**. Forms rely on standard semantic HTML structure, making focus and error states predictable. |
+
+## 5. Accessibility (A11y)
 
 | Aspect | Historical Intent | Evidence in Code | Current State |
 | :--- | :--- | :--- | :--- |

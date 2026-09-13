@@ -39,10 +39,27 @@ Used for technical and computer courses featuring integrated laboratory componen
 
 ---
 
-## 🔒 Protected Coordinate Conventions
+## 🔒 Protected Coordinate Conventions & Generator Boundaries
+
+The `grade_gen.py` module strictly enforces bounds to protect Excel formula evaluations and formatting.
 
 - **Row 1 &ndash; 10**: College crest, campus name, department header, and instructor information.
-- **Row 11**: Starting row for student data entry.
-  - Column B: Student Number (`2026XXXXX`)
-  - Column C: Student Full Name (`SURNAME, FIRSTNAME M.I.`)
 - **Computed Formula Ranges**: Must never be overwritten by the generator; formula links across worksheets are automatically evaluated by Excel upon opening.
+
+### Capacity Clamping & Row Boundaries
+The generator enforces specific capacity limits based on the template type to prevent overwriting static summary formulas:
+- **Lecture Template (`GRADING_LECTURE_TEMPLATE.xlsx`)**:
+  - Starts data entry at **Row 11**.
+  - Maximum capacity: **60 students**.
+- **Lecture + Lab Template (`GRADING_LECTURE_LAB_TEMPLATE.xlsx`)**:
+  - Starts data entry at **Row 12**.
+  - Maximum capacity: **40 students**.
+
+If a class roster exceeds the maximum capacity, the orchestrator triggers clamping logic (e.g. `cleaned_students[:max_capacity]`), logging a warning and safely ignoring overflow students rather than corrupting the template.
+
+### Signature Anchor Heuristics
+For laboratory templates, the instructor signature cell location can shift depending on formatting. The generator uses a dynamic search heuristic:
+1. It anchors the search at cell `BI57`.
+2. It sweeps a bounding box from row `52` to `62` (offset -5 to +5) and columns `41` to `66` (offset -20 to +5).
+3. If it finds a cell containing the word "instructor" (case-insensitive), it places the instructor's name exactly 3 rows above the matched cell.
+4. If not found, it falls back gracefully with a logged warning.

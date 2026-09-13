@@ -84,3 +84,9 @@ cvsu-generator_documentation repository (branch: dev)
 
 All changes that alter architecture, generators, templates, user workflows, or packaging require updating the corresponding notes in `cvsu-generator_documentation` and validating against `tests/test_obsidian_vault_integrity.py` before finalizing commits.
 
+### Evolution of Governance as Code
+The dual-repository protocol was strictly enforced via test automation during the application's development cycle:
+- **Formalized Protocol (Commit `b1ad7ff`)**: Introduced the dual-repository documentation governance protocol into `AGENTS.md` and added the vault integrity test.
+- **Dynamic Vault Resolution (Commit `7d6ddc2`)**: Replaced hardcoded documentation paths with dynamic sibling-path resolution and `CVSU_VAULT_DIR` environmental overrides, allowing `test_obsidian_vault_integrity.py` to dynamically locate the documentation vault.
+- **Strict Enforcement (Commit `88b3839`)**: Removed the permissive `pytest.skipif` logic that silently skipped documentation tests if the vault was absent. The test suite now strictly asserts the existence of the documentation vault and fails if the vault is missing.
+
