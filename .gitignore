@@ -1,0 +1,14 @@
+# Obsidian workspace and local state
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache/
+.obsidian/.trash/
+.obsidian/plugins/*/data.json.bak
+
+# OS and temporary artifacts
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.tmp
+~$*.xlsx
+~$*.docx
