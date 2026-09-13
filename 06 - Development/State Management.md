@@ -23,35 +23,15 @@ Related notes:
 
 ---
 
-## 💾 Persistent Configuration State
+## State Dictionary
 
-The application configuration, which includes departmental aliases, subject prefixes, and known lab subjects, is managed centrally by `ParserConfigManager` in `modules/common/config_manager.py`.
-
-### 1. Merging Strategy
-- The application ships with factory defaults (`DEFAULT_CEIT_PREFIX_MAP`, `DEFAULT_ROSTER_KEYWORDS`, etc.).
-- When the application launches, `ParserConfigManager` attempts to load a `parser_settings.json` file from the user's `APPDATA/CVSU_Generators/config` directory.
-- It performs a deep merge, prioritizing user overrides while falling back to factory defaults for any missing keys.
-
-### 2. State Observers
-- `ParserConfigManager` implements a simple observer pattern (`register_listener` and `_notify_listeners`).
-- When the configuration is saved, reset, or imported, all registered callbacks are triggered, allowing the UI or running services to reactively update.
-
----
-
-## 🖥️ Ephemeral UI Session State
-
-The frontend JavaScript separates the UI state logic from the DOM manipulation.
-
-### 1. Global Application State (`state.js`)
-- The `AppState` class acts as the single source of truth for the current session.
-- It holds references to:
-  - The list of loaded student rosters (`files`).
-  - Currently discovered course/section metadata (`classes`).
-  - Active toggle states for the engines (e.g. `generateCEIT`, `generateAttendance`).
-- The `updateUI` method is responsible for re-rendering file lists, detected classes, and warning badges based purely on the current data within `AppState`.
-
-### 2. Workflow Progression (`stepper.js`)
-- The visual progress of the user is managed by the `StepperState` class.
-- The UI features 6 distinct steps (Ingestion, Configuration, Review, Generation, etc.).
-- State transitions (e.g. advancing from Step 2 to Step 3) trigger DOM updates to highlight active "chips" and animated connectors.
-- The stepper strictly blocks progression unless specific state validation criteria are met (e.g., at least one valid roster must be loaded in `AppState` before moving to generation).
+| State | Owner | Source | Consumers | Mutation | Lifecycle |
+| ----- | ----- | ------ | --------- | -------- | --------- |
+| `schedule_path` | `orchestrator.py` | UI File Drop / Select | Config Manager, Parsers | Re-assigned on new ingestion | Ephemeral per batch |
+| `output_dir` | `orchestrator.py` | Computed from `ClassInfo` | Generators | Created per valid class | Ephemeral per generation |
+| `rosters` | `state.js` (`AppState`) | File Input | UI rendering, PyWebView | Cleared/Updated on drop | Ephemeral UI Session |
+| `roster_configs` | `config_manager.py` | `parser_settings.json` | Orchestrator, Parsers | UI settings save / Reset | Persistent across sessions |
+| `_is_processing` | `orchestrator.py` | Thread state | Stepper UI, PyWebView | Toggled at start/end/cancel | Thread Execution |
+| `_is_window_closed` | `orchestrator.py` | PyWebView Event | Generation loop | Set on window close | Application Lifecycle |
+| `_cancel_event` | `orchestrator.py` | `threading.Event` | Generation loop, UI | Set by Cancel button | Per generation job |
+| `_lock` | `orchestrator.py` | `threading.Lock` | File writers | Acquired during save | Atomic write scope |

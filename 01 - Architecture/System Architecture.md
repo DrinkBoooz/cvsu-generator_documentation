@@ -77,7 +77,7 @@ graph LR
 
 ### 1. Presentation Layer (`executable_test/`)
 - Single-page application hosted in `executable_test/ui.html`.
-- Modular vanilla JavaScript components loaded in strict dependency order:
+- Modular vanilla JavaScript components loaded in strict dependency order. This UI modularization (Commit `91`) split the monolithic logic into focused controllers:
   - `state.js`: Central reactive state store (`AppState`).
   - `theme.js`: Dark / Light theme transition manager.
   - `stepper.js`: Workflow navigation and step progression.
@@ -87,7 +87,7 @@ graph LR
 
 ### 2. IPC Layer ([[PyWebView Bridge]])
 - Located in `executable_test/api/`.
-- Implements a composite `ScriptAPI` using modular Python mixins:
+- Implements a composite `ScriptAPI` using modular Python mixins introduced to enforce a strict modular architecture (Commit `88`):
   - `ScheduleRosterMixin`: File dialogs, drop payloads, and parsing triggers.
   - `ConfigMixin`: Parser configurations, keywords, and semester boundaries.
   - `TemplateMixin`: Custom template `.docx` recipes and inspection.
