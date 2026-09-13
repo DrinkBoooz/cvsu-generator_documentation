@@ -13,6 +13,10 @@ source_of_truth:
   - executable_test/js/theme.js
   - executable_test/js/stepper.js
   - executable_test/js/toast.js
+  - executable_test/js/bridge.js
+  - executable_test/js/drawers.js
+  - executable_test/js/modal.js
+  - executable_test/js/settings.js
   - executable_test/native/dnd.py
 ---
 
@@ -68,9 +72,17 @@ graph LR
 ## 🖱️ Native Drag-and-Drop (DnD)
 
 To provide a seamless desktop experience, the UI relies on a hybrid drag-and-drop system:
-- **Frontend Dropzones**: Defined in HTML with `js/dnd_handlers.js` intercepting standard DOM `dragenter`/`dragleave`/`drop` events.
+- **Frontend Dropzones**: Defined in HTML with `js/bridge.js` intercepting standard DOM `dragenter`/`dragleave`/`drop` events.
 - **Native OLE Intercept (`executable_test/native/dnd.py`)**: Windows Edge WebView2 often blocks or sandboxes direct file drops. The Python backend overrides the Windows window procedure to act as a native OLE `IDropTarget`. 
 - **Payload Routing**: When files are dropped, the native layer routes them through `api_bridge.js` directly to the `ScheduleRosterMixin` or `TemplateMixin` to be ingested exactly as if picked via a standard file dialog.
+
+---
+
+## 🗔 Dialogs, Modals & Drawers
+
+Configuration and auxiliary user flows are handled out-of-band to prevent interrupting the main workflow stepper:
+- **Drawers**: Off-canvas side panels used for Help/Documentation (`js/drawers.js`) and execution Diagnostics (Logs).
+- **Modals**: Full-screen centered overlays for settings configuration (`js/settings.js`), manual column mapping, and critical HIG-style confirmations.
 
 ---
 
