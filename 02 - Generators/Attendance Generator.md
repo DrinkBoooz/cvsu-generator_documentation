@@ -36,6 +36,8 @@ Related notes:
    - Populates column date headers (e.g. `Sept 4`, `Sept 11`, `Sept 18`, `Sept 25`).
 4. **Semester Boundary Support**:
    - Automatically filters out dates outside the configured `start_date` and `end_date` (or standard institutional semester range).
+   - Semester defaults: First Semester (Aug-Dec), Second Semester (Feb-Jun).
+   - If the date range spans a year boundary (e.g. Dec to Jan), the calendar math automatically increments the year calculation for the months that fall past December.
 
 ---
 
@@ -51,5 +53,5 @@ Naming pattern:
 ```
 Example:
 ```text
-BSCS1-4_202612040_ATTENDANCE_Mon_September.docx
+CS1-4_202612040_ATTENDANCE_Mon_September.docx
 ```

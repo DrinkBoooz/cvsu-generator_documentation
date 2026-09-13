@@ -38,13 +38,15 @@ graph TD
     Tests --> DocxXlsx["Generator & Template Tests"]
     Tests --> Integ["UI Bridge & Consistency Tests"]
     Tests --> E2E["Playwright Browser Tests"]
+    Tests --> Build["PyInstaller Executable Tests"]
     Tests --> Vault["Obsidian Vault Integrity Tests"]
 
     Unit --> T1["test_modules_parsing.py<br>test_roster_parser.py"]
     DocxXlsx --> T2["test_modules_generation.py<br>test_grade_generator.py"]
     Integ --> T3["test_ui_consistency.py<br>test_executable_test_api_bindings.py"]
     E2E --> T4["test_playwright_e2e.py<br>test_playwright_roster_mapping.py"]
-    Vault --> T5["test_obsidian_vault_integrity.py"]
+    Build --> T5["test_pe_version_info.py"]
+    Vault --> T6["test_obsidian_vault_integrity.py"]
 ```
 
 ### 1. Fast Unit & Integration Testing
@@ -53,11 +55,12 @@ pytest tests/ -k "not test_playwright"
 ```
 Runs ~200 automated unit tests covering parser edge cases, name shrinking thresholds, schedule tokenization, and UI consistency checks in under 20 seconds.
 
-### 2. UI Consistency Test (`test_ui_consistency.py`)
+### 2. UI Consistency & Bridge Mock Testing (`test_ui_consistency.py`, `test_executable_test_api_bindings.py`)
 Validates that:
 - All step titles and button action names in `ui.html` match `executable_test/README.md`.
 - All `getElementById` calls in JavaScript exist in `ui.html`.
 - Release version badge in header matches the expected current release.
+- Python API mixin methods correctly resolve to JavaScript window binding properties (`window.pywebview.api`).
 
 ### 3. Playwright End-to-End Testing
 ```bash
@@ -65,7 +68,12 @@ pytest tests/test_playwright_e2e.py
 ```
 Validates the UI in an actual browser engine, testing file drag-and-drop ingestion, stepper navigation, theme switching performance, and modal interaction.
 
-### 4. Obsidian Documentation Vault Integrity (`test_obsidian_vault_integrity.py`)
+### 4. PyInstaller Build Tests (`test_pe_version_info.py`)
+Validates the executable packaging output:
+- Ensures the generated `CvSU Gen.exe` contains the correct FileVersion, ProductVersion, and Copyright metadata.
+- Validates the PE (Portable Executable) headers using `pefile`.
+
+### 5. Obsidian Documentation Vault Integrity (`test_obsidian_vault_integrity.py`)
 Validates that all documentation notes in `cvsu-generator_documentation`:
 - Exist in their required folders (`00` to `06`).
 - Contain valid YAML frontmatter (`title`, `status`, `last_modified`, `source_of_truth`).

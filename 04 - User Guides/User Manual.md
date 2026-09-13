@@ -43,16 +43,16 @@ graph LR
 ```
 
 ### Step 1: Select Instructor Schedule
-Click **"Browse File"** under Section 1 and select your master schedule file (`.xls` or `.xlsx`). The system extracts your instructor name, college header, semester, and schedule blocks.
+Click **"Browse File"** under Section 1 or drag and drop your master schedule file (`.xls` or `.xlsx`) directly onto the application window. The system extracts your instructor name, college header, semester, and schedule blocks.
 
 ### Step 2: Select Student Rosters
-Click **"Browse Data"** under Section 2 or drag and drop files onto the dropzone. You can multi-select all class rosters at once (`Ctrl+A`).
+Click **"Browse Data"** under Section 2 or drag and drop all class rosters (`.xlsx` or `.csv`). You can multi-select files or drop entire batches at once. If any files are missing the standard portal naming pattern, use the dropdown menus to manually link them to the correct schedule code.
 
 ### Step 3: Confirm Detected Classes & Subject Types
 Review the detected sections. For each class:
 - **Lecture only**: Uses `GRADING_LECTURE_TEMPLATE.xlsx`.
 - **Lecture and Lab**: Uses `GRADING_LECTURE_LAB_TEMPLATE.xlsx`.
-Use the dropdown selector to change course classification if needed.
+Use the dropdown selector to manually override the auto-detected classification if needed.
 
 ### Step 4: (Optional) Set Semester Date Boundaries
 Select a **Start Date** and **End Date** if you want attendance logs to cover a specific window. Leaving this blank defaults to the full institutional semester calendar.
@@ -61,4 +61,4 @@ Select a **Start Date** and **End Date** if you want attendance logs to cover a 
 Click **"Browse Path"** and choose any directory on your drive where the output folders should be generated.
 
 ### Step 6: Initialize Workflow
-Click **"Initialize Workflow"**. Real-time progress is displayed with animated status indicators. You can click **"Cancel Generation"** at any moment to abort processing safely.
+Click **"Initialize Workflow"**. Real-time progress is displayed with animated status indicators. You can click **"Cancel Generation"** at any moment to abort processing safely. Output files that are already completed will remain intact on your drive.

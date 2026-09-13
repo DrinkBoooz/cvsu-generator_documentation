@@ -43,6 +43,8 @@ graph TD
     Dev["[[Development Workflow]]"]
     TestStrat["[[Testing Strategy]]"]
     BuildPkg["[[Build & Packaging]]"]
+    AgentInst["[[Agent Instructions]]"]
+    HIG["[[HIG & UX Audit]]"]
 
     Release["[[v1.0.1]]"]
 
@@ -71,6 +73,8 @@ graph TD
 
     Dev --> TestStrat
     Dev --> BuildPkg
+    Dev --> AgentInst
+    Dev --> HIG
 ```
 
 ---
@@ -105,6 +109,8 @@ graph TD
 - **[[Development Workflow]]**: Branching strategy (`dev` vs `main`), commit rules, and versioning.
 - **[[Testing Strategy]]**: Automated test suites in `tests/`, Pytest fixtures, Playwright UI testing, and vault verification.
 - **[[Build & Packaging]]**: PyInstaller standalone executable bundling, PE metadata, and Authenticode signing.
+- **[[Agent Instructions]]**: Global rules and protocol constraints for autonomous AI contributors modifying the repository.
+- **[[HIG & UX Audit]]**: Analysis of Apple Human Interface Guidelines and WCAG 2.1 compliance.
 
 ### 🚀 05 - Releases & Changelogs
 - **[[v1.0.1]]**: Release notes for version 1.0.1 (Visual Stepper, Cancellation Engine, Toast Notifications, Playwright E2E).

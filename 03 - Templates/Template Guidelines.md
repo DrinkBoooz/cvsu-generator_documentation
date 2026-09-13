@@ -47,6 +47,10 @@ graph LR
 3. **Template Immutability**:
    - Master templates must never be modified in-place or overwritten during execution.
    - All document generation reads master templates into memory and saves to new files in the user's selected output destination.
+4. **Custom User Templates**:
+   - Registered at runtime by the user via the `TemplateMixin` API.
+   - Files are physically copied to the `%APPDATA%/CVSU_Generators/templates/` application data directory.
+   - Not bundled in the executable; they persist locally per-user.
 
 ---
 
@@ -59,3 +63,7 @@ set_cell_text(cell, name, shrink_threshold=32, shrink_sz="18")
 ```
 - Strings $\le 32$ characters retain default template font size (typically 10pt or 11pt).
 - Strings $> 32$ characters automatically scale down to 9pt (`sz="18"` in OpenXML) to prevent breaking table height.
+
+### Table Row Cloning
+When generating student rosters, the engines isolate a "template row" from the master template table.
+- To prevent template placeholder text from ghosting or artifacting into the generated file, the engine explicitly clears all `<w:t>` (text) nodes in the cloned row's XML before injecting student data.

@@ -45,6 +45,7 @@ graph LR
         Config["ConfigManager"]
         Parser["modules/parsers/schedule_parser.py"]
         Roster["modules/parsers/roster_parser.py"]
+        Validator["modules/services/validator.py"]
         Orchestrator["modules/services/orchestrator.py"]
     end
 
@@ -58,10 +59,13 @@ graph LR
     State --> StepUI
     StepUI --> BridgeJS
     BridgeJS <==>|"window.pywebview.api"| API
+    
     API --> Config
     API --> Parser
     API --> Roster
+    API --> Validator
     API --> Orchestrator
+    
     Orchestrator --> CEIT
     Orchestrator --> Att
     Orchestrator --> Grade
@@ -84,17 +88,22 @@ graph LR
 ### 2. IPC Layer ([[PyWebView Bridge]])
 - Located in `executable_test/api/`.
 - Implements a composite `ScriptAPI` using modular Python mixins:
-  - `ScheduleRosterMixin`: File dialogs and parsing triggers.
-  - `ConfigMixin`: User preference and boundary configuration.
-  - `TemplateMixin`: Custom template management and diagnostics.
+  - `ScheduleRosterMixin`: File dialogs, drop payloads, and parsing triggers.
+  - `ConfigMixin`: Parser configurations, keywords, and semester boundaries.
+  - `TemplateMixin`: Custom template `.docx` recipes and inspection.
   - `SystemMixin`: Native OS directory exploration and shell launching.
-  - `GenerationMixin`: Worker thread instantiation and cancellation.
+  - `GenerationMixin`: Worker thread instantiation, telemetry hook, and cancellation.
 
-### 3. Processing & Extraction ([[Generator Pipeline]])
+### 3. Native Integration (`executable_test/native/dnd.py`)
+- Overrides the default PyWebView window window procedure (WndProc).
+- Implements `IDropTarget` OLE interface to allow native Windows file drag-and-drop directly onto the webview, bypassing Edge Chromium's restricted file-drop behaviors.
+- Routes payloads back to `api_bridge.js` which then calls the IPC layer.
+
+### 4. Processing & Extraction ([[Generator Pipeline]])
 - Parses schedule spreadsheets (`modules/parsers/schedule_parser.py`) and maps class sections against student rosters (`modules/parsers/roster_parser.py`).
-- Detects lab components using schedule contact hours and historical department catalogs (`modules/parsers/ceit_directory.py`).
+- Employs a validator (`modules/services/validator.py`) to match schedules to rosters and enforce data requirements.
 
-### 4. Generation Core ([[Orchestrator Lifecycle]])
+### 5. Generation Core ([[Orchestrator Lifecycle]])
 - Threaded execution in `modules/services/orchestrator.py:process_all`.
 - Pushes live step progress and status messages back to the UI via `window.onGenerationProgress` callbacks.
 - Supports instant, clean cancellation via thread-safe `threading.Event`.

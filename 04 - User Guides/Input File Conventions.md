@@ -43,8 +43,8 @@ Related notes:
   - **Column B**: Student Number (`2026XXXXX`)
   - Additional columns (Email, Course, Status, Remarks) are automatically ignored.
 
-### Required Roster File Naming Convention
-Roster spreadsheets must match the official portal export format:
+### Roster File Naming Convention (Auto-Matching)
+For automatic pairing, roster spreadsheets should match the official portal export format:
 ```text
 {Course/Sec} List of Students for {ScheduleCode}-{Subject}.xlsx
 ```
@@ -52,4 +52,6 @@ Roster spreadsheets must match the official portal export format:
 ```text
 BSCS1-4 List of Students for 202612040-DCIT 21A - INTRODUCTION TO COMPUTING.xlsx
 ```
-The program uses `{ScheduleCode}` and `{Course/Sec}` to pair each student list with the corresponding block in your schedule.
+
+### Manual Linking
+If you rename your roster files (e.g. `section_1.xlsx`), the program will flag them as "unmatched". You can manually link them to a specific schedule block in the application's Step 2 interface by clicking the "Link Schedule Code" button next to the orphaned file.

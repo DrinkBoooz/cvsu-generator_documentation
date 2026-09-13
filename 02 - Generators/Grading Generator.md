@@ -9,7 +9,7 @@ status: active
 last_modified: 2026-09-13
 source_of_truth:
   - modules/generators/grade_gen.py
-  - modules/parsers/ceit_directory.py
+  - modules/common/config_manager.py
   - templates/
 ---
 
@@ -31,12 +31,16 @@ The generator automatically selects between two master templates based on the su
 
 ```mermaid
 graph TD
-    Class["ClassInfo"] --> LabCheck{"Has Lab Hours or Known Lab Code?"}
+    Class["ClassInfo"] --> LabCheck{"Has Lab Component?"}
     LabCheck -->|Yes| LabTpl["GRADING_LECTURE_LAB_TEMPLATE.xlsx<br>(4 Tabs: Lecture, Lab, Consolidated, Grading Sheet)"]
     LabCheck -->|No| LecTpl["GRADING_LECTURE_TEMPLATE.xlsx<br>(2 Tabs: Lecture, Grading Sheet)"]
 ```
 
-Faculty members can also override the auto-detected template type via the dropdown in Step 3 of the UI.
+The Lab Component check is evaluated in the Orchestrator with the following priority:
+1. `type_overrides` configuration from UI.
+2. `LAB` or `LABORATORY` in the subject name string.
+3. Schedule block explicitly labeled as `LAB`.
+4. `KNOWN_LAB_SUBJECT_CODES` check (e.g. `ITEC 50`) stored in the JSON configuration.
 
 ---
 
@@ -59,9 +63,6 @@ Faculty members can also override the auto-detected template type via the dropdo
 
 Grading spreadsheets are saved in the root folder of each class section:
 ```text
-<Output Directory>/<Course_Section>/<Course_Sec>_<SchedCode>_GRADING_SHEET.xlsx
+<Output Directory>/<Course_Section>/Grades/<Course_Sec>_<SchedCode>_GRADING_SHEET.xlsx
 ```
-Example:
-```text
-BSCS 1-4/BSCS1-4_202612040_GRADING_SHEET.xlsx
-```
+*(Note: Output paths are sanitized to replace invalid characters like slashes before file writes).*

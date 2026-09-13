@@ -52,7 +52,13 @@ Contains official PE version details:
 - `--add-data`: Bundles `ui.html`, `css/`, `js/`, `templates/`, and `attendance/`.
 - `--collect-submodules modules`: Ensures all dynamic generator imports are packaged.
 
-### 3. Authenticode Code Signing (`sign_exe.ps1`)
+### 3. WebView2 Runtime Dependency Mechanics
+The application relies on `pywebview` using the Edge/WebView2 rendering engine on Windows.
+- Windows 11 and up-to-date Windows 10 machines include the WebView2 Evergreen Bootstrapper natively.
+- If WebView2 is missing, `pywebview` will attempt to automatically download and install the Evergreen Runtime when the application first starts.
+- Because of this behavior, the PyInstaller bundle (`CvSU Gen.exe`) does not need to embed the full multi-hundred megabyte WebView2 fixed runtime, keeping the executable size small.
+
+### 4. Authenticode Code Signing (`sign_exe.ps1`)
 Digitally signs `dist/CvSU Gen.exe` using `signtool.exe` with Dan Joseph Ortega's institutional code signing certificate and RFC 3161 timestamping:
 ```powershell
 signtool.exe sign /fd SHA256 /a /tr http://timestamp.digicert.com /td SHA256 "dist\CvSU Gen.exe"
