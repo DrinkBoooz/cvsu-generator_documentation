@@ -62,11 +62,25 @@ When releasing a new version:
 
 ---
 
-## 🗂️ Workspace Architecture & Companion Vault
+## 🗂️ Coordinated Workspace Architecture & Companion Repositories
 
-The project consists of two coordinated sibling components in the development workspace:
-- **Application Repository**: `C:\Users\danjo\OneDrive\CVSU GENERATORS` (`DrinkBoooz/cvsu-generators`)
-- **Documentation Vault**: `C:\Users\danjo\OneDrive\cvsu-generator_documentation` (`DrinkBoooz/cvsu-generator_documentation`)
+The project environment is organized as a **coordinated project workspace** composed of two distinct sibling Git repositories:
+- **Application Repository (`CVSU GENERATORS`)**: `C:\Users\danjo\OneDrive\CVSU GENERATORS` (`DrinkBoooz/cvsu-generators`)
+- **Documentation Repository (`cvsu-generator_documentation`)**: `C:\Users\danjo\OneDrive\cvsu-generator_documentation` (`DrinkBoooz/cvsu-generator_documentation`)
 
-Both repositories are kept physically distinct to respect application runtime boundaries while remaining logically integrated under the same project umbrella. All changes that affect architecture, generators, templates, user workflows, or packaging require updating the corresponding notes in the vault and validating with `tests/test_obsidian_vault_integrity.py`.
+### Dual-Repository Commit Workflow
+
+Because each component has its own independent Git repository, changes cannot be committed atomically in a single Git commit. Instead, features or refactors spanning both application code and documentation must be committed in their respective repositories with coordinated commit descriptions:
+
+```text
+Application Implementation & Tests
+    ↓
+CVSU GENERATORS repository (branch: dev)
+
+Human-Readable Guides & Vault Notes
+    ↓
+cvsu-generator_documentation repository (branch: dev)
+```
+
+All changes that alter architecture, generators, templates, user workflows, or packaging require updating the corresponding notes in `cvsu-generator_documentation` and validating against `tests/test_obsidian_vault_integrity.py` before finalizing commits.
 
