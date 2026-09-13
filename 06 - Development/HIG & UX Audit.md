@@ -59,35 +59,33 @@ This audit is derived strictly from current source code, rendered visual inspect
 
 ## 3. Official Apple HIG Guidance Sources Referenced
 
-To eliminate generic checklist claims, every substantive assessment references current official Apple Developer documentation:
+Every substantive assessment references current official Apple Developer documentation:
 
 1. **Layout & Visual Hierarchy**: *Layout | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/layout](https://developer.apple.com/design/human-interface-guidelines/layout))
    - *Relevant Apple guidance*: Use negative space, size, and visual weight to establish a clear hierarchy of importance that directs attention to essential tasks.
 2. **Typography**: *Typography | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/typography](https://developer.apple.com/design/human-interface-guidelines/typography))
    - *Relevant Apple guidance*: Text must remain legible across display scales; interfaces should maintain optical balance and clear hierarchy regardless of host platform typeface.
-3. **Navigation**: *Navigation | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/navigation](https://developer.apple.com/design/human-interface-guidelines/navigation))
+3. **Navigation**: *Navigation and search | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/navigation-and-search](https://developer.apple.com/design/human-interface-guidelines/navigation-and-search))
    - *Relevant Apple guidance*: Design clear pathways through the app so users always know their current location, completed steps, and upcoming requirements.
-4. **Drag and Drop**: *Drag and Drop | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/drag-and-drop](https://developer.apple.com/design/human-interface-guidelines/drag-and-drop))
+4. **Drag and Drop**: *Drag and drop | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/drag-and-drop](https://developer.apple.com/design/human-interface-guidelines/drag-and-drop))
    - *Relevant Apple guidance*: Provide direct manipulation with immediate, unmistakable visual feedback confirming drop target affordance and state.
 5. **Buttons & Controls**: *Buttons | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/buttons](https://developer.apple.com/design/human-interface-guidelines/buttons))
    - *Relevant Apple guidance*: Clearly communicate control purpose, interactive affordance, and state changes, providing adequate target areas for pointer acquisition.
-6. **Entering Data**: *Entering Data | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/entering-data](https://developer.apple.com/design/human-interface-guidelines/entering-data))
+6. **Entering Data**: *Entering data | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/entering-data](https://developer.apple.com/design/human-interface-guidelines/entering-data))
    - *Relevant Apple guidance*: Validate user input predictably and provide timely guidance when errors occur, ideally while the user is actively working.
-7. **Feedback & Progress Indicators**: *Feedback | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/feedback](https://developer.apple.com/design/human-interface-guidelines/feedback)) & *Progress Indicators | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/progress-indicators](https://developer.apple.com/design/human-interface-guidelines/progress-indicators))
+7. **Feedback & Progress Indicators**: *Feedback | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/feedback](https://developer.apple.com/design/human-interface-guidelines/feedback)) & *Progress indicators | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/progress-indicators](https://developer.apple.com/design/human-interface-guidelines/progress-indicators))
    - *Relevant Apple guidance*: Offer timely, non-intrusive status updates and quantifiable progress for operations that take more than a few seconds.
-8. **Error Handling & Recovery**: *Error Handling | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/error-handling](https://developer.apple.com/design/human-interface-guidelines/error-handling))
-   - *Relevant Apple guidance*: Explain issues clearly and offer constructive, low-friction paths to recover without losing workflow context.
-9. **Alerts & Destructive Actions**: *Alerts | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/alerts](https://developer.apple.com/design/human-interface-guidelines/alerts))
+8. **Alerts & Destructive Actions**: *Alerts | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/alerts](https://developer.apple.com/design/human-interface-guidelines/alerts))
    - *Relevant Apple guidance*: Reserve modal alerts for critical or irreversible actions. Use action-oriented button labels and always include a safe Cancel option.
-10. **Modals & Presentation Context**: *Modals | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/modals](https://developer.apple.com/design/human-interface-guidelines/modals))
-    - *Relevant Apple guidance*: Use modality to deliver critical information or require an intentional user choice before continuing the main workflow.
-11. **Motion & Accessibility**: *Motion | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/motion](https://developer.apple.com/design/human-interface-guidelines/motion)) & *Accessibility | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/accessibility](https://developer.apple.com/design/human-interface-guidelines/accessibility))
+9. **Modality**: *Modality | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/modality](https://developer.apple.com/design/human-interface-guidelines/modality)) & *Sheets | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/sheets](https://developer.apple.com/design/human-interface-guidelines/sheets))
+   - *Relevant Apple guidance*: Use modality to present content in a dedicated mode that prevents interaction with the parent view and requires an explicit action to dismiss, reserving it for critical subtasks.
+10. **Motion & Accessibility**: *Motion | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/motion](https://developer.apple.com/design/human-interface-guidelines/motion)) & *Accessibility | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/accessibility](https://developer.apple.com/design/human-interface-guidelines/accessibility))
     - *Relevant Apple guidance*: Keep animations brief and purposeful; provide alternatives or reduced motion for users sensitive to animated transitions.
-12. **Color & Appearances**: *Color | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/color](https://developer.apple.com/design/human-interface-guidelines/color)) & *Dark Mode | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/dark-mode](https://developer.apple.com/design/human-interface-guidelines/dark-mode))
+11. **Color & Appearances**: *Color | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/color](https://developer.apple.com/design/human-interface-guidelines/color)) & *Dark Mode | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/dark-mode](https://developer.apple.com/design/human-interface-guidelines/dark-mode))
     - *Relevant Apple guidance*: Use color to support hierarchy and state, but never as the sole indicator of essential information; adapt seamlessly between light and dark appearances.
-13. **Window Anatomy**: *Window Anatomy | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/window-anatomy](https://developer.apple.com/design/human-interface-guidelines/window-anatomy))
+12. **Windows**: *Windows | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/windows](https://developer.apple.com/design/human-interface-guidelines/windows))
     - *Relevant Apple guidance*: Organize window frames and content to fit the application's purpose and the host operating system's conventions.
-14. **The Menu Bar**: *The Menu Bar | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/the-menu-bar](https://developer.apple.com/design/human-interface-guidelines/the-menu-bar))
+13. **The Menu Bar**: *The menu bar | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/the-menu-bar](https://developer.apple.com/design/human-interface-guidelines/the-menu-bar))
     - *Relevant Apple guidance*: In macOS, the system menu bar at the top of the screen provides persistent access to application commands.
 
 ---
@@ -98,18 +96,18 @@ To eliminate generic checklist claims, every substantive assessment references c
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Visual Hierarchy** | Two-column dashboard grid; prominent `#bottomActionBar` with primary trigger `#btnDockProcess`; glass-card containers. | *Layout* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/layout)) | HIG-relevant cross-platform principle | **Aligned** | Source (`ui.html`) + Visual (1200×800 capture) | High |
 | **Typography** | Font stack: `-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Arial, sans-serif`. Resolves to `Segoe UI` on Windows. | *Typography* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/typography)) | HIG-relevant cross-platform principle / Apple-inspired | **Platform-Appropriate / Aligned** | Source (`tokens.css`, `base.css`) + Visual (computed styles) | High |
-| **Navigation & Stepper** | Sticky 6-step progress bar (`#workflowStepper`) with step chips (`#chipStep1` to `#chipStep6`), dynamic status icons, and viewport scroll-spy. | *Navigation* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/navigation)) | HIG-relevant cross-platform principle | **Aligned** | Source (`stepper.js`) + Runtime (`test_playwright_e2e.py`) + Visual | High |
-| **Direct Manipulation & Drag/Drop** | Windows native OLE `IDropTarget` (`dnd.py`) routing through `bridge.js`; visual dragover state on `.dropzone`; keyboard file picker alternative. | *Drag and Drop* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/drag-and-drop)) | Windows-native convention | **Platform-Appropriate / Aligned** | Source (`dnd.py`, `bridge.js`) + Runtime (`test_playwright_e2e.py`) | High |
+| **Navigation & Stepper** | Sticky 6-step progress bar (`#workflowStepper`) with step chips (`#chipStep1` to `#chipStep6`), dynamic status icons, and viewport scroll-spy. | *Navigation and search* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/navigation-and-search)) | HIG-relevant cross-platform principle | **Aligned** | Source (`stepper.js`) + Runtime (`test_playwright_e2e.py`) + Visual | High |
+| **Direct Manipulation & Drag/Drop** | Windows native OLE `IDropTarget` (`dnd.py`) routing through `bridge.js`; visual dragover state on `.dropzone`; keyboard file picker alternative. | *Drag and drop* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/drag-and-drop)) | Windows-native convention | **Platform-Appropriate / Aligned** | Source (`dnd.py`, `bridge.js`) + Runtime (`test_playwright_e2e.py`) | High |
 | **Desktop Controls & Target Sizing** | Primary button (`padding: 10px 22px`), 36×36px utility icons, segmented controls (`.segmented-btn`), focus rings (`--a11y-focus-ring-width: 2px`). | *Buttons* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/buttons)) | HIG-relevant cross-platform principle | **Aligned** | Source (`drawers.css`, `components.css`) + Visual | High |
-| **Form Inputs & Validation** | Date range inputs with chronology check; pre-flight validation on generation trigger with error toasts; limited real-time inline field validation. | *Entering Data* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/entering-data)) | HIG-relevant cross-platform principle | **Partially Aligned** | Source (`step2.js`, `step3.js`) + Runtime (`test_playwright_e2e.py`) | High |
-| **Feedback & Telemetry** | Non-modal toast system (`#toastContainer`, `js/toast.js`); WAI-ARIA `progressbar` pattern; live elapsed stopwatch timer. | *Feedback* & *Progress Indicators* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/feedback)) | HIG-relevant cross-platform principle | **Aligned** | Source (`toast.js`, `ui.html`) + Runtime (`test_playwright_e2e.py`) | High |
-| **Errors & Recovery** | Graceful rejection of invalid files via warning/error toasts; generation double-click guards; responsive thread abort via `#btnCancelGeneration`. | *Error Handling* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/error-handling)) | HIG-relevant cross-platform principle | **Aligned** | Source (`step3.js`) + Runtime (`test_playwright_e2e.py`) | High |
+| **Form Inputs & Validation** | Date range inputs with chronology check; pre-flight validation on generation trigger with error toasts; limited real-time inline field validation. | *Entering data* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/entering-data)) | HIG-relevant cross-platform principle | **Partially Aligned** | Source (`step2.js`, `step3.js`) + Runtime (`test_playwright_e2e.py`) | High |
+| **Feedback & Telemetry** | Non-modal toast system (`#toastContainer`, `js/toast.js`); WAI-ARIA `progressbar` pattern; live elapsed stopwatch timer. | *Feedback* & *Progress indicators* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/feedback)) | HIG-relevant cross-platform principle | **Aligned** | Source (`toast.js`, `ui.html`) + Runtime (`test_playwright_e2e.py`) | High |
+| **Errors & Recovery** | Graceful rejection of invalid files via warning/error toasts; generation double-click guards; responsive thread abort via `#btnCancelGeneration`. | *Alerts* & *Feedback* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/alerts)) | HIG-relevant cross-platform principle | **Aligned** | Source (`step3.js`) + Runtime (`test_playwright_e2e.py`) | High |
 | **Destructive Action Safeguards** | Centered confirmation modal (`#modalAppleConfirmBackdrop`) invoked for irreversible configuration resets and file replacements. Clear button titles, safe Cancel, Escape dismissal, focus return. | *Alerts* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/alerts)) | HIG-relevant cross-platform principle | **Aligned** | Source (`modal.js`, `settings.js`) + Runtime (`test_playwright_accessibility.py`) + Visual | High |
-| **Modal Presentation** | Centered window backdrop overlays (`#modalParserSettingsBackdrop`, `#modalRosterMappingBackdrop`, `#modalAppleConfirmBackdrop`) with focus trapping and Escape key dismissal. | *Modals* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/modals)) | Windows-native / Webview context | **Platform-Appropriate / Aligned** | Source (`modal.js`, `modals.css`) + Runtime + Visual | High |
+| **Modal Presentation & Modality** | Centered window backdrop overlays (`#modalParserSettingsBackdrop`, `#modalRosterMappingBackdrop`, `#modalAppleConfirmBackdrop`) with focus trapping and Escape key dismissal. | *Modality* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/modality)) & *Sheets* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/sheets)) | Windows-native / Webview context | **Platform-Appropriate / Aligned** | Source (`modal.js`, `modals.css`) + Runtime + Visual | High |
 | **Motion & Animation** | CSS transitions (150ms–300ms) with spring-inspired cubic-bezier curves; modal pop (8px/4% scale); drawer slide (100% horizontal); absence of `@media (prefers-reduced-motion)`. | *Motion* & *Accessibility* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/motion)) | HIG-relevant cross-platform principle / Accessibility | **Partially Aligned** | Source (`tokens.css`, `modals.css`, `drawers.css`) + Visual | High |
 | **Color & Visual States** | Tailored HSL palette; light and dark modes; non-color indicators (icons, badges, text labels, borders, opacity) across tested workflow states; `@media (forced-colors: active)` in CSS. | *Color* & *Dark Mode* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/color)) | HIG-relevant cross-platform principle | **Aligned** | Source (`tokens.css`, `base.css`, `components.css`) + Visual | High |
-| **Window Anatomy & Chrome** | Single-window utility layout with top header; absence of traditional desktop menu bar or keyboard shortcut accelerators for drawer access. | *Window Anatomy* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/window-anatomy)) | Windows-native / Webview context | **Platform-Appropriate / Partially Aligned** | Source (`ui.html`) + Visual | Medium |
-| **macOS System Menu Bar** | No global top menu bar. | *The Menu Bar* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/the-menu-bar)) | Apple-specific platform convention | **Not Applicable** | Platform Architecture (Windows WebView2 runtime) | High |
+| **Window Anatomy & Chrome** | Single-window utility layout with top header; absence of traditional desktop menu bar or keyboard shortcut accelerators for drawer access. | *Windows* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/windows)) | Windows-native / Webview context | **Platform-Appropriate / Partially Aligned** | Source (`ui.html`) + Visual | Medium |
+| **macOS System Menu Bar** | No global top menu bar. | *The menu bar* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/the-menu-bar)) | Apple-specific platform convention | **Not Applicable** | Platform Architecture (Windows WebView2 runtime) | High |
 
 ---
 
@@ -136,7 +134,7 @@ To eliminate generic checklist claims, every substantive assessment references c
 
 ### 5.3 Navigation & Workflow Stepper
 - **Current Implementation**: A sticky workflow stepper (`#workflowStepper`) provides 6 interactive step chips (`#chipStep1` to `#chipStep6`) with animated connectors (`#connector1to2`, etc.). Chips update dynamically with icons (clock, checkmark, warning) and status labels ("Incomplete", "Complete"). Clicking a chip smoothly scrolls to the target card.
-- **Official Apple Source**: *Navigation | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/navigation](https://developer.apple.com/design/human-interface-guidelines/navigation)).
+- **Official Apple Source**: *Navigation and search | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/navigation-and-search](https://developer.apple.com/design/human-interface-guidelines/navigation-and-search)).
 - **Relevant Principle**: Apple guidance emphasizes intuitive pathways that keep users aware of their current state, past steps, and remaining tasks without trapping them in rigid modal flows.
 - **Applicability**: HIG-relevant cross-platform principle.
 - **Assessment**: **Aligned**. The linear milestone progression provides clear spatial orientation and direct navigation without trapping users in modal wizards.
@@ -144,7 +142,7 @@ To eliminate generic checklist claims, every substantive assessment references c
 
 ### 5.4 Direct Manipulation & Native Windows Drag-and-Drop
 - **Current Implementation**: The application uses the native Windows OLE `IDropTarget` integration implemented in `executable_test/native/dnd.py`, with JavaScript routing handled through `executable_test/js/bridge.js`.
-- **Official Apple Source**: *Drag and Drop | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/drag-and-drop](https://developer.apple.com/design/human-interface-guidelines/drag-and-drop)).
+- **Official Apple Source**: *Drag and drop | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/drag-and-drop](https://developer.apple.com/design/human-interface-guidelines/drag-and-drop)).
 - **Relevant Principle**: Apple guidance highlights drag-and-drop as an intuitive direct manipulation technique that requires distinct visual feedback confirming drop target readiness and data acceptance.
 - **Applicability**: Windows-native convention.
 - **Assessment**: **Platform-Appropriate / Aligned**.
@@ -166,7 +164,7 @@ To eliminate generic checklist claims, every substantive assessment references c
 
 ### 5.6 Form Inputs & Validation Timing
 - **Current Implementation**: Date inputs enforce chronological boundaries (`endDate >= startDate`). Multi-step configuration errors across Steps 1–5 are validated predominantly during pre-flight checks when `#btnDockProcess` is clicked in `js/step3.js`, emitting error toasts and scrolling the viewport to the offending section.
-- **Official Apple Source**: *Entering Data | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/entering-data](https://developer.apple.com/design/human-interface-guidelines/entering-data)).
+- **Official Apple Source**: *Entering data | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/entering-data](https://developer.apple.com/design/human-interface-guidelines/entering-data)).
 - **Relevant Principle**: Apple guidance recommends validating input as soon as possible, ideally inline while the user is actively working, rather than deferring all feedback to submission time.
 - **Applicability**: HIG-relevant cross-platform principle.
 - **Assessment**: **Partially Aligned**. Pre-flight validation reliably guards the generation engine against corrupted inputs, but the absence of real-time inline field validation banners or dirty-checking prior to clicking the primary action means users may experience friction when submitting incomplete setups.
@@ -174,7 +172,7 @@ To eliminate generic checklist claims, every substantive assessment references c
 
 ### 5.7 Feedback, Live Telemetry & Progress
 - **Current Implementation**: Long-running generation jobs trigger `#progressContainer`, which implements the WAI-ARIA Progressbar pattern (`role="progressbar"`, `aria-valuemin="0"`, `aria-valuemax="100"`, dynamic `aria-valuenow`, dynamic `aria-valuetext`). A live stopwatch timer (`#progressElapsedTimer`) displays elapsed execution time. Discrete events and non-blocking warnings are dispatched via non-modal toasts (`#toastContainer`, `js/toast.js`).
-- **Official Apple Source**: *Feedback | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/feedback](https://developer.apple.com/design/human-interface-guidelines/feedback)) & *Progress Indicators | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/progress-indicators](https://developer.apple.com/design/human-interface-guidelines/progress-indicators)).
+- **Official Apple Source**: *Feedback | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/feedback](https://developer.apple.com/design/human-interface-guidelines/feedback)) & *Progress indicators | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/progress-indicators](https://developer.apple.com/design/human-interface-guidelines/progress-indicators)).
 - **Relevant Principle**: Apple guidance advises providing non-intrusive status updates and quantifiable progress indicators for long-running operations without blocking user interaction unnecessarily.
 - **Applicability**: HIG-relevant cross-platform principle.
 - **Assessment**: **Aligned**. Real-time progress updates, stopwatch telemetry, and transient live notifications communicate system state clearly without interrupting workflow execution.
@@ -196,10 +194,10 @@ To eliminate generic checklist claims, every substantive assessment references c
 - **Assessment**: **Aligned**. The confirmation modal satisfies criteria for necessity, clarity, proportionality, reversibility warning, and safe cancellation. Routine actions never prompt alerts.
 - **Evidence & Confidence**: Source (`modal.js:142–200`, `settings.js:523`) and runtime accessibility test (`test_playwright_accessibility.py`). High confidence.
 
-### 5.9 Modal Presentation & Focus Containment
+### 5.9 Modal Presentation & Modality
 - **Current Implementation**: The current Windows/PyWebView implementation uses centered backdrop overlays with focus trapping, Escape dismissal, and focus restoration (`#modalParserSettingsBackdrop`, `#modalRosterMappingBackdrop`, `#modalAppleConfirmBackdrop`). macOS-specific window-attached sheet behavior is not directly applicable to this Windows implementation.
-- **Official Apple Source**: *Modals | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/modals](https://developer.apple.com/design/human-interface-guidelines/modals)).
-- **Relevant Principle**: Apple guidance emphasizes using modality purposefully for self-contained subtasks, ensuring clear dismissal mechanisms and focus containment while the modal is visible.
+- **Official Apple Source**: *Modality | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/modality](https://developer.apple.com/design/human-interface-guidelines/modality)) & *Sheets | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/sheets](https://developer.apple.com/design/human-interface-guidelines/sheets)).
+- **Relevant Principle**: Apple guidance defines modality as a technique that presents content in a separate, dedicated mode that prevents interaction with the parent view and requires an explicit action to dismiss, reserving it for critical subtasks that require deliberate user choices.
 - **Applicability**: Windows-native / Webview context.
 - **Assessment**: **Platform-Appropriate / Aligned**. Centered backdrop overlays represent the appropriate idiom for Windows desktop webviews. Modals enforce strict focus trapping (Tab/Shift+Tab boundary cycling), dismiss on Escape, and restore focus to trigger buttons upon dismissal.
 - **Evidence & Confidence**: Source (`modal.js`, `modals.css`) and runtime focus trapping tests. High confidence.
@@ -218,7 +216,7 @@ To eliminate generic checklist claims, every substantive assessment references c
 - **Assessment**: **Partially Aligned**.
   - *Duration & Amplitude*: Animations are brief (150ms–300ms), localized, and low-amplitude (e.g. 8px vertical shift on modals, 16px on toasts). They do not involve full-screen 3D flips, continuous parallax, or disorienting camera movements.
   - *Purpose & Frequency*: Motion communicates spatial hierarchy (drawers slide from the viewport edge; toasts emerge from bottom right) and is triggered strictly by user action.
-  - *Limitation*: Because the application does not query OS-level reduced motion preferences, users with vestibular sensitivities cannot opt out of animations.
+  - *Limitation*: Because the application does not query OS-level reduced motion preferences, users who request reduced animation through Windows accessibility settings cannot suppress transitions.
 - **Evidence & Confidence**: Source inspection of all stylesheets under `executable_test/css/`. High confidence.
 
 ### 5.11 Color, Contrast & State Independence
@@ -240,7 +238,7 @@ To eliminate generic checklist claims, every substantive assessment references c
 
 ### 5.12 Window Anatomy & Desktop Chrome
 - **Current Implementation**: Single-window utility shell without a traditional desktop menu bar (File, Edit, View, Help). Auxiliary functions are accessed via header icon buttons that trigger slide-over drawers (`#helpDrawer`, `#logsDrawer`) or modal dialogs (`#modalParserSettingsBackdrop`).
-- **Official Apple Source**: *Window Anatomy | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/window-anatomy](https://developer.apple.com/design/human-interface-guidelines/window-anatomy)).
+- **Official Apple Source**: *Windows | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/windows](https://developer.apple.com/design/human-interface-guidelines/windows)).
 - **Relevant Principle**: Apple guidance advises structuring window anatomy to fit application content and platform conventions, ensuring essential commands remain easily accessible.
 - **Applicability**: Windows-native / Webview context.
 - **Assessment**: **Platform-Appropriate / Partially Aligned**. The single-window layout is platform-appropriate for a dedicated document generation utility. However, the absence of global keyboard shortcut accelerators (e.g. `Ctrl+,` for Settings, `Ctrl+L` for Logs, `F1` for Help) leaves drawer discovery reliant solely on mouse pointer interaction.
@@ -248,7 +246,7 @@ To eliminate generic checklist claims, every substantive assessment references c
 
 ### 5.13 macOS Global System Menu Bar
 - **Current Implementation**: No global system menu bar exists.
-- **Official Apple Source**: *The Menu Bar | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/the-menu-bar](https://developer.apple.com/design/human-interface-guidelines/the-menu-bar)).
+- **Official Apple Source**: *The menu bar | Apple Developer Documentation* ([developer.apple.com/design/human-interface-guidelines/the-menu-bar](https://developer.apple.com/design/human-interface-guidelines/the-menu-bar)).
 - **Relevant Principle**: In macOS, the menu bar is always available at the top of the screen and contains menus for app-level commands.
 - **Applicability**: Apple-specific platform convention.
 - **Assessment**: **Not Applicable**. The application targets Windows desktop environments where global macOS menu bars do not exist and are not expected by users.
@@ -262,11 +260,11 @@ To eliminate generic checklist claims, every substantive assessment references c
 - **HIG Area**: Motion & Accessibility (*Apple HIG — Motion*, *Apple HIG — Accessibility*).
 - **Current Implementation**: Transitions (150ms–300ms) and keyframe animations (`modalPop`, `toastSlideIn`, `pulse-emerald`) execute unconditionally without `@media (prefers-reduced-motion)`.
 - **Why It Differs**: The stylesheet architecture prioritized self-contained micro-animations (`--hig-ease-spring`) without wiring system-level accessibility media query listeners.
-- **Empirical Impact**: Low to Medium. Animations are brief, purposeful, and localized to small containers; they avoid full-screen disorientation. However, users who configure "Show animations in Windows" to disabled cannot suppress UI transitions.
+- **Empirical Impact**: Low to Medium. Animations are brief, purposeful, and localized to small containers; they avoid full-screen disorientation. However, users who request reduced animation through Windows accessibility settings cannot suppress UI transitions.
 - **Confidence**: **High** (Verified by exhaustive search across all files in `executable_test/css/`).
 
 ### Deviation 2: Pre-Flight Only Form Validation
-- **HIG Area**: Entering Data (*Apple HIG — Entering Data*).
+- **HIG Area**: Entering Data (*Apple HIG — Entering data*).
 - **Current Implementation**: Multi-step configuration errors (e.g. unselected generation engines or unconfigured date bounds) are validated predominantly during pre-flight checks when the primary action button (`#btnDockProcess`) is clicked, triggering toasts and scrolling to the error section.
 - **Why It Differs**: Decouples individual step logic from complex multi-field dirty checking, avoiding premature warnings before the user has finished interacting.
 - **Empirical Impact**: Low. The stepper chips display status badges, but users may click "Initialize Workflow" without realizing a required field was skipped.
@@ -320,7 +318,7 @@ The accessibility audit observes strict empirical verification boundaries:
    - *Runtime Verified*: axe-core initial DOM scan against WCAG 2.0/2.1 Level A and AA rules produced **0 critical, serious, or moderate violations**.
 6. **Explicit Forensic Verification Boundaries**:
    - *Screen Reader Speech Output*: Synthesized speech output across Windows Narrator, NVDA, and JAWS was not evaluated.
-   - *Dynamic State Scans*: Automated axe-core scans covered the initial DOM load; dynamic states during open drawer or active progress states were not evaluated.
+   - *Dynamic State Scans*: Automated axe-core scans covered the initial DOM load; dynamic scans during open drawer or active progress states were not evaluated.
    - *High Contrast Live Rendering*: Forced-colors CSS rules are verified in source code (`base.css:61–108`), but live rendering under active Windows High Contrast OS themes was not evaluated.
 
 ---
@@ -389,7 +387,7 @@ Forensic review of previous audit claims in legacy documentation:
 *(These recommendations represent optional architectural proposals for consideration in future development phases; they do not represent defects in the current implementation).*
 
 1. **Operating-System-Aware Reduced-Motion Strategy**:
-   - *Proposal*: Introduce an operating-system-aware reduced-motion strategy that suppresses or substitutes nonessential animation for users who request reduced motion via Windows "Show animations in Windows" accessibility settings.
+   - *Proposal*: Introduce an operating-system-aware reduced-motion strategy that suppresses or substitutes nonessential animation for users who request reduced animation through Windows accessibility settings.
    - *Example implementation approach only; not an Apple HIG requirement*:
      ```css
      @media (prefers-reduced-motion: reduce) {
@@ -416,7 +414,7 @@ Forensic review of previous audit claims in legacy documentation:
   ```powershell
   pytest tests/test_obsidian_vault_integrity.py -v
   ```
-  **Result: 4 passed in 0.12s (100%)**.
+  **Result: 4 passed in 0.08s (100%)**.
   - `test_obsidian_vault_structure_exists` PASSED
   - `test_obsidian_vault_frontmatter_integrity` PASSED
   - `test_obsidian_vault_wikilink_resolution` PASSED
