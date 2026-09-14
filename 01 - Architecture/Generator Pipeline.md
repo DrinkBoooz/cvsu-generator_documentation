@@ -6,21 +6,25 @@ tags:
   - pipeline
   - parsers
 status: active
-last_modified: 2026-09-13
+last_modified: 2026-09-15
 source_of_truth:
   - modules/parsers/schedule_parser.py
   - modules/parsers/roster_parser.py
   - modules/services/validator.py
+  - modules/services/orchestrator.py
+  - modules/services/template_recipe_service.py
   - modules/models/schedule.py
+  - modules/models/recipe.py
 ---
 
 # Generator Pipeline
 
-The **Generator Pipeline** is responsible for transforming raw input spreadsheets into clean domain models, matching class sections with their corresponding student rosters, and dispatching tasks to document generators.
+The **Generator Pipeline** is responsible for transforming raw input spreadsheets into clean domain models, matching class sections with their corresponding student rosters, resolving authoritative template recipes, and dispatching tasks to document generators.
 
 Related notes:
 - [[CvSU Document Generator MOC]]
 - [[System Architecture]]
+- [[Template Discovery Pipeline]]
 - [[Orchestrator Lifecycle]]
 - [[Generators Overview]]
 - [[Input File Conventions]]
@@ -39,10 +43,17 @@ graph TD
 
     Matcher --> LabDetect["Lab Subject Classifier<br>(config_manager / overrides)"]
 
-    LabDetect -->|Lecture Only| Dis1["GradeGen (Lecture Template)"]
-    LabDetect -->|Lecture & Lab| Dis2["GradeGen (Lecture+Lab Template)"]
-    LabDetect --> Dis3["AttendanceGen (Calendar Dates)"]
-    LabDetect --> Dis4["CEITGen (Registered Forms)"]
+    LabDetect --> Resolver["TemplateRecipeResolver<br>(resolve & cache ValidatedTemplateRecipe)"]
+
+    Resolver -->|GradeSheet Recipe| Dis1["GradeGenerator<br>(Lecture or Lecture+Lab)"]
+    Resolver -->|AcademicDocx Recipe| Dis2["CEIT Forms (7 Native Forms)<br>(GeneratorFactory)"]
+    Resolver -->|CustomDocx Recipe| Dis3["ConfigurableDocumentGenerator<br>(Custom Templates)"]
+    LabDetect -->|Calendar Math & Bounds| Dis4["Attendance Generator<br>(template lec / lab and lec)"]
+
+    Dis1 --> Out1["<Output>/<Course_Sec>/Grades/"]
+    Dis2 --> Out2["<Output>/<Course_Sec>/CEIT_Forms/"]
+    Dis3 --> Out2
+    Dis4 --> Out3["<Output>/<Course_Sec>/Attendance/"]
 ```
 
 ---
@@ -70,8 +81,13 @@ graph TD
 - Determines which rosters are orphaned (no matching schedule) and which schedule blocks lack a roster.
 - Ensures all minimum requirements for generation (valid instructor, valid student rows, valid schedule matrix) are met before passing data to the Orchestrator.
 
-## 4. Lab Classification
+## 4. Lab Classification & Dispatch
 - Analyzes syllabus lab hours and cross-references against `KNOWN_LAB_SUBJECT_CODES` (defined in the central `cvsu_parser_config.json`).
 - If `"LAB"` or `"LABORATORY"` appears in the subject string, it is automatically flagged.
-- Flags classes requiring the 4-tab Excel grading workbook (`GRADING_LECTURE_LAB_TEMPLATE.xlsx`) versus standard lecture courses (`GRADING_LECTURE_TEMPLATE.xlsx`).
-- Provides fallback user overrides configured in Step 3 of the UI (stored as `type_overrides` passed to the Orchestrator).
+- Flags classes requiring the 4-tab Excel grading workbook (`GRADING_LECTURE_LAB_TEMPLATE.xlsx`) versus standard lecture courses (`GRADING_LECTURE_TEMPLATE.xlsx`), and attendance `template lab and lec.docx` versus `template lec.docx`.
+- Supports user overrides configured in Step 3 of the UI (passed as `type_overrides` to `process_all`).
+
+## 5. Recipe Resolution & Generation Execution
+- **CEIT & Custom Forms**: `GeneratorFactory` queries `TemplateRecipeResolver.get_instance()` to obtain `ValidatedTemplateRecipe` instances, rendering 7 native forms plus custom configurable documents to `<Output>/<Course_Sec>/CEIT_Forms/`.
+- **Attendance Sheets**: `generate_attendance_for_month()` evaluates calendar meeting days, returning `"generated"` on file creation or `"skipped_empty"` if 0 meeting days fall within semester bounds, writing to `<Output>/<Course_Sec>/Attendance/`.
+- **Grading Sheets**: `GradeGenerator` resolves `grade_sheet_xlsx` recipe via `TemplateRecipeResolver`, clamps rosters to validated capacity (40 students), preserves formulas via `data_only=False`, and saves atomically to `<Output>/<Course_Sec>/Grades/`.

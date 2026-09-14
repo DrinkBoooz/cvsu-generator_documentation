@@ -5,7 +5,7 @@ tags:
   - index
   - moc
 status: active
-last_modified: 2026-09-13
+last_modified: 2026-09-15
 source_of_truth:
   - executable_test/
   - modules/
@@ -31,6 +31,7 @@ graph TD
     CEITGen["[[CEIT Generator]]"]
     AttGen["[[Attendance Generator]]"]
     GradeGen["[[Grading Generator]]"]
+    GenDoc["[[Generic Document Generator]]"]
 
     Templates["[[Template Guidelines]]"]
     CEITTpl["[[CEIT Templates]]"]
@@ -65,6 +66,7 @@ graph TD
     Gens --> CEITGen
     Gens --> AttGen
     Gens --> GradeGen
+    Gens --> GenDoc
 
     Templates --> CEITTpl
     Templates --> AttTpl
@@ -94,10 +96,11 @@ graph TD
 - **[[UI Architecture]]**: Responsive 6-step workflow stepper, themes, toast engine, and accessibility (WCAG 2.1 AA).
 
 ### ⚙️ 02 - Document Generators
-- **[[Generators Overview]]**: Technical comparison and contracts across the 3 document generation engines.
+- **[[Generators Overview]]**: Technical comparison and contracts across the 3 document generation engines and generic pipeline.
 - **[[CEIT Generator]]**: Document generation for official CEIT department forms (`ceit_gen.py`).
 - **[[Attendance Generator]]**: Dynamic calendar parsing and monthly attendance sheets (`attendance_gen.py`).
 - **[[Grading Generator]]**: Official Excel grading sheets with formula preservation (`grade_gen.py`).
+- **[[Generic Document Generator]]**: Dynamic Word document rendering for custom user-supplied templates (`generic_doc_gen.py`).
 
 ### 📋 03 - Templates & Schemas
 - **[[Template Guidelines]]**: Global template architecture, bundle mechanisms, and font auto-scaling safeguards.
