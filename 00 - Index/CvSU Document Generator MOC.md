@@ -23,6 +23,7 @@ graph TD
     Arch["[[System Architecture]]"]
     Bridge["[[PyWebView Bridge]]"]
     Pipeline["[[Generator Pipeline]]"]
+    DiscPipe["[[Template Discovery Pipeline]]"]
     Orch["[[Orchestrator Lifecycle]]"]
     UI["[[UI Architecture]]"]
 
@@ -57,6 +58,7 @@ graph TD
 
     Arch --> Bridge
     Arch --> Pipeline
+    Arch --> DiscPipe
     Arch --> Orch
     Arch --> UI
 
@@ -73,8 +75,10 @@ graph TD
 
     Dev --> TestStrat
     Dev --> BuildPkg
+    AgentInst --> HIG
     Dev --> AgentInst
-    Dev --> HIG
+
+    Release --> MOC
 ```
 
 ---
@@ -85,6 +89,7 @@ graph TD
 - **[[System Architecture]]**: High-level application architecture, PyWebView runtime, and subprocess isolation.
 - **[[PyWebView Bridge]]**: Modular `ScriptAPI` mixin structure (`ScheduleRosterMixin`, `ConfigMixin`, `TemplateMixin`, `SystemMixin`, `GenerationMixin`).
 - **[[Generator Pipeline]]**: Data parsing, class matching, and generator routing pipeline.
+- **[[Template Discovery Pipeline]]**: Dynamic template discovery, recipe validation, schema v2 contracts, and immutable lifecycle.
 - **[[Orchestrator Lifecycle]]**: Threading, progress telemetry, cancellation tokens, and error aggregation in `process_all`.
 - **[[UI Architecture]]**: Responsive 6-step workflow stepper, themes, toast engine, and accessibility (WCAG 2.1 AA).
 

@@ -47,19 +47,20 @@ The `grade_gen.py` module strictly enforces bounds to protect Excel formula eval
 - **Computed Formula Ranges**: Must never be overwritten by the generator; formula links across worksheets are automatically evaluated by Excel upon opening.
 
 ### Capacity Clamping & Row Boundaries
-The generator enforces specific capacity limits based on the template type to prevent overwriting static summary formulas:
+The generator dynamically discovers and enforces capacity limits based on verified template formula ranges:
 - **Lecture Template (`GRADING_LECTURE_TEMPLATE.xlsx`)**:
-  - Starts data entry at **Row 11**.
-  - Maximum capacity: **60 students**.
+  - Starts data entry at **Row 11** (`recipe.roster_binding.first_data_row_index`).
+  - Pre-formatted formula rows: Rows 11&ndash;50.
+  - Maximum capacity: **40 students** (`capacity_limit = 40`).
 - **Lecture + Lab Template (`GRADING_LECTURE_LAB_TEMPLATE.xlsx`)**:
-  - Starts data entry at **Row 12**.
-  - Maximum capacity: **40 students**.
+  - Starts data entry at **Row 12** (`recipe.roster_binding.first_data_row_index`).
+  - Pre-formatted formula rows: Rows 12&ndash;51.
+  - Maximum capacity: **40 students** (`capacity_limit = 40`).
 
-If a class roster exceeds the maximum capacity, the orchestrator triggers clamping logic (e.g. `cleaned_students[:max_capacity]`), logging a warning and safely ignoring overflow students rather than corrupting the template.
+If a class roster exceeds the maximum capacity, `grade_gen.py` safely clamps the roster to `capacity_limit` (e.g. `students[:capacity_limit]`), logging a warning and never corrupting the template footer formulas.
 
-### Signature Anchor Heuristics
-For laboratory templates, the instructor signature cell location can shift depending on formatting. The generator uses a dynamic search heuristic:
-1. It anchors the search at cell `BI57`.
-2. It sweeps a bounding box from row `52` to `62` (offset -5 to +5) and columns `41` to `66` (offset -20 to +5).
-3. If it finds a cell containing the word "instructor" (case-insensitive), it places the instructor's name exactly 3 rows above the matched cell.
-4. If not found, it falls back gracefully with a logged warning.
+### Structural Signature Geometry Discovery (Mutation M8)
+Rather than using fragile hardcoded coordinates or naive relative row offsets (such as `label row - 3`), `XlsxTemplateInspector` discovers the signature target from structural merged cell geometry:
+1. It locates the merged label block containing `"INSTRUCTOR"` (e.g. `BI60:BR62` in Lecture, `AO62:AX64` in Lab, `J59:S61` in Consolidated).
+2. It scans all merged cell ranges in the worksheet for the structural signature block directly above it (`min_col == label.min_col`, `max_col == label.max_col`, and `max_row == label.min_row - 1`).
+3. It dynamically resolves the top-left coordinate of that merged box (`BI57`, `AO59`, `J56`), rendering discovery completely resilient to row additions or structural repositioning (Mutation M8).

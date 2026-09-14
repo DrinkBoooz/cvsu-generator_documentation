@@ -32,9 +32,10 @@ classDiagram
     class DocumentGenerator {
         <<abstract>>
         +template_path: str
+        +recipe: ValidatedTemplateRecipe
         +generate(info: ClassInfo, output_path: str)
-        #fill_header(body, info: ClassInfo)*
-        #_fill_student_row(cells, idx, name, stnum)*
+        +fill_header(body, info: ClassInfo)
+        #_fill_student_row(cells, idx, name, stnum)
     }
 
     class SyllabusGenerator
@@ -49,7 +50,8 @@ classDiagram
     DocumentGenerator <|-- TOSGenerator
     DocumentGenerator <|-- GradeDiscussionGenerator
     DocumentGenerator <|-- ConfigurableDocumentGenerator
-    GeneratorFactory ..> DocumentGenerator : instantiates
+    GeneratorFactory ..> TemplateRecipeResolver : resolves recipe
+    GeneratorFactory ..> DocumentGenerator : instantiates with recipe
 ```
 
 ---
