@@ -6,7 +6,7 @@ tags:
   - ceit
   - docx
 status: active
-last_modified: 2026-09-13
+last_modified: 2026-09-14
 source_of_truth:
   - modules/generators/ceit_gen.py
   - modules/common/docx_utils.py
@@ -84,7 +84,7 @@ classDiagram
    - Output Suffix: `_GRADE_DISCUSSION_MIDTERM`
 7. **Grade Discussion Form (Finals)**:
    - Class: `GradeDiscussionGenerator` (`period="Finals"`)
-   - Template: `Final-Grade-Discussion_LATEST.docx` (with `Finals-Grade-Discussion_LATEST.docx` fallback)
+   - Template: `Final-Grade-Discussion_LATEST.docx`
    - Output Suffix: `_GRADE_DISCUSSION_FINALS`
 
 ## ⚙️ Custom Configurable Templates
