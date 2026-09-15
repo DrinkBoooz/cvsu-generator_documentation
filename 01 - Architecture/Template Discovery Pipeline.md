@@ -22,7 +22,7 @@ source_of_truth:
 
 # Template Discovery Pipeline
 
-The **Template Discovery Pipeline** is the authoritative subsystem responsible for dynamically scanning, validating, and binding Microsoft Word (`.docx`) and Excel (`.xlsx`) document templates. It replaces all legacy positional table indexing (`tables[0]`, `rows[1]`), hardcoded coordinate assignments (`ws['C1']`, `ws['AO59']`), and shadow-template fallbacks with an immutable, validated recipe lifecycle.
+The **Template Discovery Pipeline** is the authoritative subsystem responsible for dynamically scanning, validating, and binding Microsoft Word (`.docx`) and Excel (`.xlsx`) document templates. The recipe-driven CEIT DOCX and grading XLSX paths replace their structural positional bindings with an immutable, validated recipe lifecycle. The attendance generator and compatibility facades remain legacy paths and are not represented as fully recipe-driven execution.
 
 Related notes:
 - [[CvSU Document Generator MOC]]
@@ -112,9 +112,10 @@ cache_key = (absolute_template_path, profile_id, sha256_fingerprint)
 ### 2. Grading Sheet Workbooks (`modules/generators/grade_gen.py`)
 - `GradeGenerator` strictly requires `(template_path: str, recipe: ValidatedTemplateRecipe)`.
 - Zero hardcoded coordinates:
-  - Header discrete fields (`C1` schedule code, `M1` course section, `C2` subject code, `M2` semester, `C3` subject title, `M3` school year, `C4` units, `M4` instructor) are discovered from the `Lecture` sheet layout.
+  - Header discrete fields are discovered from the `Lecture` sheet layout and written through recipe bindings.
   - Institutional College banner at `Grading Sheet!A9` is dynamically resolved.
   - Student roster rows start dynamically (`first_data_row_index` = 11 for lecture, 12 for lecture/lab, or shifted by sub-headers).
+  - The roster worksheet name, row, columns, and capacity are carried by the validated `RosterBinding`; the inspector scans the worksheet structure rather than a fixed row/column window.
   - Student roster is clamped to `recipe.roster_binding.capacity_limit` (40 for canonical templates).
 - **Structural Merged Cell Signature Discovery (Mutation M8)**:
   Signature targets (`BI57` in Lecture, `AO59` in Lab, `J56` in Consolidated) are discovered by identifying the merged label range containing `"INSTRUCTOR"` (`BI60:BR62`), and scanning worksheet merged cell ranges for the structural block directly above it (`min_col == label.min_col`, `max_col == label.max_col`, `max_row == label.min_row - 1`). The discovery is immune to row insertions or position shifts.
