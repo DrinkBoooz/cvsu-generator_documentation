@@ -14,6 +14,9 @@ source_of_truth:
   - modules/parsers/recipe_validator.py
   - modules/models/recipe.py
   - modules/services/template_recipe_service.py
+  - modules/common/path_utils.py
+  - modules/parsers/template_inspector.py
+  - modules/parsers/semantic_registry.py
 ---
 
 # Generic Document Generator
@@ -37,22 +40,25 @@ Related notes:
 ```mermaid
 graph TD
     UserTpl["Custom User Template (.docx)"] --> Inspector["DocxTemplateInspector.inspect()"]
-    Inspector --> Cand["RawTemplateRecipeCandidate"]
+    Inspector --> Cand["RawTemplateRecipeCandidate<br>(Multi-row header detection)"]
     Cand --> Validator["RecipeValidator.validate(..., PROFILE_CUSTOM_DOCX)"]
-    Validator --> ValidRecipe["ValidatedTemplateRecipe<br>(profile_id='custom_docx')"]
+    Validator --> ValidRecipe["ValidatedTemplateRecipe<br>(metadata['output_folder'], roster_binding)"]
 
     UserDict["Custom Recipe Dict<br>(from ConfigManager / IPC)"] --> ValDict["RecipeValidator.validate_dict(recipe, 'custom_docx')"]
     ValDict --> ValidRecipe
 
     ValidRecipe --> Gen["ConfigurableDocumentGenerator(template_path, validated_recipe)"]
     Gen --> Exec["generate(info: ClassInfo, output_path: str)"]
-    Exec --> Out["<Output>/<Course_Sec>/CEIT_Forms/<Course_Sec>_<Sched>_<SUFFIX>.docx"]
+    Exec --> Out["<Output>/<Course_Sec>/<Target_Folder>/<Course_Sec>_<Sched>_<SUFFIX>.docx"]
 ```
 
 ### Validation & Deserialization Invariants
 - **Dynamic Recipe Validation**: `ConfigurableDocumentGenerator` validates serialized recipe dictionaries through `RecipeValidator.validate_dict(..., "custom_docx")` when a validated recipe object is not already supplied.
 - **Strict Schema Policy**: `validate_dict()` strictly enforces `schema_version == 2`. Unversioned dictionaries, legacy v1 schemas, or invalid version numbers raise `InvalidRecipeError`.
 - **Construction Token Guard**: `validate_dict()` explicitly verifies that no external `_construction_token` is present in the dictionary, preventing spoofed recipe construction.
+- **Single Source of Truth for Output Routing**: Target subfolder is stored strictly in `recipe.metadata["output_folder"]` (defaulting to `"CEIT_Forms"`). `ConfigurableDocumentGenerator` exposes a read-only `output_folder` property that reads directly from `self._recipe.metadata.get("output_folder") or "CEIT_Forms"` without private state caching.
+- **Safe Sandboxed Path Helper**: `modules/common/path_utils.py::validate_output_folder` guarantees all output subfolders remain strictly relative inside `<Course_Sec>/`, rejecting absolute paths, drive letters, `..`, `.`, reserved Windows names (`CON`, `PRN`, `AUX`, `NUL`, etc.), invalid characters (`<>:"|?*`), and segments ending in spaces or dots.
+- **Multi-Row Header Detection**: `DocxTemplateInspector._detect_roster_table` identifies multi-row headers (`header_row_count >= 1`) by combining explicit Word `<w:tblHeader/>` markers, semantic subheader keywords (`Date`, `Day`, `Week`, `Time`, etc.), and vertical merge continuations, while distinguishing blank template data rows from secondary headers.
 - **Dynamic Roster Indexing**: When `recipe.profile_id == "custom_docx"` and `rb.index_col` is defined, `_fill_student_row` automatically populates the 1-based sequential row index (`idx + 1`).
 - **Two-Pass Placeholder Replacement**: For templates using textual tokens (e.g. `{{INSTRUCTOR}}`, `{{SUBJECT}}`), the engine replaces tokens at the text node level, and then evaluates paragraph-level runs to merge tokens fragmented across multiple XML `<w:r>` runs.
 
@@ -108,20 +114,26 @@ Target 12 was audited against the comprehensive 23-attribute checklist, and any 
 - **Populated fields**: Mapped fields configured in the recipe (e.g. `instructor`, `course_section`, `schedule_code`, `subject`, `time_days_room`, `semester_ay`, student roster columns).
 - **Untouched fields**: Unbound template tables, headers, footers, graphics, and signature placeholders.
 - **Output filename**: `<Course_Sec>_<SchedCode>_<CUSTOM_SUFFIX>.docx` (e.g. `CS1-4_202612040_CONSULTATION_LOG.docx`).
-- **Output directory**: `<Output>/<Course_Sec>/CEIT_Forms/`.
+- **Output directory**: Governed dynamically by `generator.output_folder` (stored strictly in `recipe.metadata["output_folder"]`). Defaults to `CEIT_Forms/`, but can route to `Attendance/` or any valid relative subfolder (e.g. `Advising/Logs/`). Orchestrator dynamically creates `<Output>/<Course_Sec>/<output_folder>/`.
 - **Error handling**:
   - **Custom template loading / validation failures**: Caught and logged inside `GeneratorFactory.get_all(include_custom=True)` (`try/except Exception as e: logger.error(f"Failed to load custom templates in GeneratorFactory: {e}")`). If a custom template fails inspection or recipe validation, it is logged and skipped so that native forms and remaining valid custom templates continue loading uninterrupted.
   - **Document generation failures**: If `ConfigurableDocumentGenerator.generate(info, output_path)` encounters an error during orchestrator execution, it is caught and logged by orchestrator CEIT error handling (`try/except Exception as e: err_msg = f"Failed CEIT ({suffix}): {str(e)}"; logger.error(err_msg, exc_info=True); results["errors"]["ceit"].append(err_msg); _notify(...)`), allowing other document engines and sections to proceed.
   - In addition, standalone dictionary validation via `RecipeValidator.validate_dict` raises `InvalidRecipeError` or `TemplateError` on invalid schemas or structure.
-- **Dependencies**: `lxml`, `zipfile`, `modules.generators.ceit_gen`, `modules.parsers.recipe_validator`, `modules.models.recipe`.
+- **Dependencies**: `lxml`, `zipfile`, `modules.generators.ceit_gen`, `modules.parsers.recipe_validator`, `modules.models.recipe`, `modules.common.path_utils`.
 - **External resources**: User-provided `.docx` template files.
 - **Edge cases**:
+  - Multi-row header tables with subheaders (e.g. weekly Date subheaders) preserved cleanly without overwriting secondary headers.
+  - Single-row header tables with completely blank template data rows (e.g. `Final-Grade-Discussion_LATEST.docx`) correctly preserved as data templates rather than misclassified as headers.
   - Word documents with placeholders split across 3 or more XML runs (resolved by 2-pass string replacement).
   - Custom templates without a student roster table (valid under `PROFILE_CUSTOM_DOCX`; `fill_table` safely exits).
   - Roster table with missing optional `index_col` (skips index population without error).
+  - Isolated compound metadata labels like `"Course Code & Title"` safely bound to `subject` without colliding with `subject_code` or `subject_title`.
 - **Automated tests**:
-  - `tests/test_generic_doc_gen.py::test_generic_doc_gen_syllabus` (directly instantiates and executes `ConfigurableDocumentGenerator` on `template_syllabus.docx`, verifying table extraction, header binding, and student row generation)
-  - `tests/test_generic_doc_gen.py::test_generic_doc_gen_exam` (directly instantiates and executes `ConfigurableDocumentGenerator` on `template_exam_midterm.docx`, verifying table extraction and student row population)
+  - `tests/test_custom_template_routing.py` (comprehensive 12-test suite for safe relative path validation, traversal rejection, single source of truth in `recipe.metadata`, `generator.output_folder` inheritance, and orchestrator custom folder creation)
+  - `tests/test_multi_row_roster_headers.py` (5-test suite for multi-row header detection, blank template row handling, structural bounds validation, and end-to-end generation preservation of secondary headers)
+  - `tests/test_compound_semantic_labels.py` (5-test suite verifying isolated matching for `Course Code` -> `subject_code`, `Course Title` -> `subject_title`, and `Course Code & Title` -> `subject`)
+  - `tests/test_generic_doc_gen.py::test_generic_doc_gen_syllabus`
+  - `tests/test_generic_doc_gen.py::test_generic_doc_gen_exam`
   - `tests/test_custom_template_pipeline.py::test_custom_template_crud`
   - `tests/test_custom_template_pipeline.py::test_generator_factory_includes_custom_templates`
   - `tests/test_custom_template_pipeline.py::test_script_api_custom_template_endpoints`
@@ -132,6 +144,9 @@ Target 12 was audited against the comprehensive 23-attribute checklist, and any 
 - **Evidence/source references**:
   - `modules/generators/generic_doc_gen.py:1–49`
   - `modules/generators/ceit_gen.py:202–208` (`_fill_student_row` index col logic)
-  - `modules/generators/ceit_gen.py:400–422` (`GeneratorFactory` custom template loader)
-  - `modules/parsers/recipe_validator.py:100–190` (`validate_dict`)
-  - `modules/services/orchestrator.py:385–403` (orchestrator CEIT error handling)
+  - `modules/generators/ceit_gen.py:400–422` (`GeneratorFactory` custom template loader with recipe_data support)
+  - `modules/parsers/recipe_validator.py:100–190` (`validate_dict` and multi-row header bounds)
+  - `modules/services/orchestrator.py:385–403` (dynamic `generator.output_folder` routing)
+  - `modules/common/path_utils.py:1–88` (`validate_output_folder`)
+  - `modules/parsers/template_inspector.py:320–447` (`_detect_roster_table` and `_is_secondary_header_row`)
+  - `modules/parsers/semantic_registry.py:43–61` (`SEMANTIC_ALIASES` compound patterns)
