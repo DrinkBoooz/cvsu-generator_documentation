@@ -7,13 +7,15 @@ tags:
   - discovery
   - recipes
 status: active
-last_modified: 2026-09-14
+last_modified: 2026-09-15
 source_of_truth:
   - modules/parsers/semantic_registry.py
   - modules/models/recipe.py
   - modules/parsers/recipe_validator.py
   - modules/parsers/template_inspector.py
   - modules/services/template_recipe_service.py
+  - modules/generators/document_generator.py
+  - modules/generators/field_resolver.py
   - modules/generators/ceit_gen.py
   - modules/generators/grade_gen.py
 ---
@@ -28,24 +30,15 @@ Related notes:
 - [[Generator Pipeline]]
 - [[Orchestrator Lifecycle]]
 - [[CEIT Generator]]
-- [[Grading Generator]]
 - [[Generic Document Generator]]
-- [[CEIT Templates]]
-- [[Grading Templates]]
 
 ---
 
-## 🏛️ Core Architectural Principle: Inspector Non-Authority
+## 🏛️ Architectural Hierarchy
+
+The pipeline operates across four decoupled layers:
 
 ```
-┌────────────────────────────────────────────────────────┐
-│                   TEMPLATE CONTROLS                    │
-│  - Document Structure & Table Layout                   │
-│  - Visual Styling & Column Ordering                    │
-│  - Merged Cell Spans & Roster Capacities               │
-└──────────────────────────┬─────────────────────────────┘
-                           │ (Emits Raw Candidate Observations)
-                           ▼
 ┌────────────────────────────────────────────────────────┐
 │               INSPECTION & DISCOVERY LAYER             │
 │  - modules/parsers/template_inspector.py               │
@@ -66,17 +59,22 @@ Related notes:
                            │ (Supplies ValidatedTemplateRecipe)
                            ▼
 ┌────────────────────────────────────────────────────────┐
+│                 FIELD RESOLUTION LAYER                 │
+│  - modules/generators/field_resolver.py                │
+│  - FieldResolver.resolve_field_value()                 │
+│  - ClassInfo mapping, aliases, derived formats         │
+│  - Safe empty string defaults; never fabricates        │
+└──────────────────────────┬─────────────────────────────┘
+                           │ (Provides Values to Execution Engine)
+                           ▼
+┌────────────────────────────────────────────────────────┐
 │                   GENERATOR CONTROLS                   │
-│  - ceit_gen.py & grade_gen.py                          │
+│  - document_generator.py & grade_gen.py                │
 │  - Pure recipe execution with zero coordinate binding  │
 │  - Clamps student rosters to verified capacity_limit   │
 │  - Font auto-scaling and overflow prevention           │
 └────────────────────────────────────────────────────────┘
 ```
-
-> [!IMPORTANT]
-> **Inspector Non-Authority Invariant**:
-> Inspectors (`DocxTemplateInspector`, `XlsxTemplateInspector`) **never** construct or return `ValidatedTemplateRecipe`. They discover candidate observations and emit `RawTemplateRecipeCandidate`. `RecipeValidator.validate()` is the **sole authority** in the application permitted to construct `ValidatedTemplateRecipe`.
 
 ---
 
@@ -101,8 +99,9 @@ cache_key = (absolute_template_path, profile_id, sha256_fingerprint)
 
 ## 📐 Generator Integration & Pure Recipe Execution
 
-### 1. Academic & CEIT Forms (`modules/generators/ceit_gen.py`)
+### 1. Academic & CEIT Forms (`modules/generators/document_generator.py`, `ceit_gen.py`)
 - Base class `DocumentGenerator` requires `(template_path: str, recipe: ValidatedTemplateRecipe)`.
+- Metadata values are resolved through `FieldResolver.resolve_field_value(field_name, info, recipe)`.
 - Metadata is written by inspecting `recipe.header_bindings`, targeting specific cells `(table_idx, row_idx, col_idx)` or paragraph indices.
 - Roster insertion uses `recipe.roster_binding`:
   - `table_index`: dynamically discovered roster table (ambiguity checked against multi-table collision).

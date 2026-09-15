@@ -10,6 +10,8 @@ status: active
 last_modified: 2026-09-15
 source_of_truth:
   - modules/generators/generic_doc_gen.py
+  - modules/generators/document_generator.py
+  - modules/generators/field_resolver.py
   - modules/generators/ceit_gen.py
   - modules/parsers/recipe_validator.py
   - modules/models/recipe.py
@@ -21,7 +23,7 @@ source_of_truth:
 
 # Generic Document Generator
 
-The **Generic Document Generator** (`modules/generators/generic_doc_gen.py`) provides dynamic document generation for arbitrary user-supplied Microsoft Word (`.docx`) templates through the `ConfigurableDocumentGenerator` class.
+The **Generic Document Generator** (`modules/generators/generic_doc_gen.py`) provides dynamic document generation for arbitrary user-supplied Microsoft Word (`.docx`) templates through the `ConfigurableDocumentGenerator` class, built upon the neutral DOCX execution engine (`modules/generators/document_generator.py`) and authoritative field resolution layer (`modules/generators/field_resolver.py`).
 
 Related notes:
 - [[CvSU Document Generator MOC]]
@@ -35,7 +37,7 @@ Related notes:
 
 ## 🏛️ Architectural Framework
 
-`ConfigurableDocumentGenerator` subclasses `DocumentGenerator` to provide dynamic, recipe-driven document rendering for custom forms. It operates with zero mutable dictionary access during execution, delegating core rendering to the validated recipe lifecycle.
+`ConfigurableDocumentGenerator` subclasses `DocumentGenerator` (from `modules/generators/document_generator.py`) to provide dynamic, recipe-driven document rendering for custom forms. Runtime field values are determined by `FieldResolver` (`modules/generators/field_resolver.py`), separating field semantic resolution from document layout execution.
 
 ```mermaid
 graph TD
@@ -47,6 +49,9 @@ graph TD
     ConfigMeta["ConfigManager UI Metadata<br>(metadata['output_folder'], title, suffix)"] --> ApplyMeta["Apply UI Metadata to Validated Recipe"]
     ValidRecipe --> ApplyMeta
     ApplyMeta --> Gen["ConfigurableDocumentGenerator(template_path, validated_recipe)"]
+    ClassInfo["ClassInfo Runtime Data"] --> ResolverLayer["FieldResolver.resolve_field_value()"]
+    ApplyMeta --> ResolverLayer
+    ResolverLayer --> Gen
     Gen --> Route["orchestrator → generator.output_folder → validate_output_folder()"]
     Route --> TargetDir["<Output>/<Course_Sec>/<output_folder>/"]
     TargetDir --> Exec["generate(info: ClassInfo, output_path: str)"]
