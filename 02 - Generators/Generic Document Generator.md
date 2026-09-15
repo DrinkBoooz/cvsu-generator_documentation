@@ -69,6 +69,26 @@ graph TD
 - **Multi-Row Header Detection**: `DocxTemplateInspector._detect_roster_table` identifies multi-row headers (`header_row_count >= 1`) by combining explicit Word `<w:tblHeader/>` markers, semantic subheader keywords (`Date`, `Day`, `Week`, `Time`, etc.), and vertical merge continuations, while distinguishing blank template data rows from secondary headers.
 - **Dynamic Roster Indexing**: When `recipe.profile_id == "custom_docx"` and `rb.index_col` is defined, `_fill_student_row` automatically populates the 1-based sequential row index (`idx + 1`).
 - **Two-Pass Placeholder Replacement**: For templates using textual tokens (e.g. `{{INSTRUCTOR}}`, `{{SUBJECT}}`), the engine replaces tokens at the text node level, and then evaluates paragraph-level runs to merge tokens fragmented across multiple XML `<w:r>` runs.
+- **Centralized Field Semantics**: The DOCX execution engine no longer contains an inline field-to-ClassInfo mapping. Field semantics are centralized in `FieldResolver` (`modules/generators/field_resolver.py`).
+
+### Field Resolution Precedence Contract
+`FieldResolver.resolve()` enforces a strict, non-fabricating precedence order:
+1. **Authoritative Canonical Runtime Fields**:
+   `instructor`, `course_section`, `schedule_code`, `subject`, `time_days_room`, `semester_ay`.
+   `ClassInfo` runtime attributes take highest priority, falling back to recipe metadata only if the runtime attribute is empty.
+2. **Derived Fields**:
+   `subject_code`, `subject_title`, `semester`, `school_year`.
+   Strict hierarchy: `explicit runtime field > deterministic derivation > explicit recipe metadata fallback > ""`.
+   (e.g. `ClassInfo.subject = "COSC 70 - SE"` derives `subject_code = "COSC 70"` and overrides conflicting recipe metadata).
+3. **Contextual Fields**:
+   `date`, `period`, `units`, `department`, `program`, `section`.
+   Runtime source on `info` takes precedence, followed by recipe metadata, falling back to `""` (Rule A: never fabricated).
+4. **College Field Policy**:
+   Distinguishes explicit runtime college from legacy defaults via `ClassInfo.has_explicit_college`:
+   - If `has_explicit_college` is True: explicit runtime value is authoritative.
+   - If `has_explicit_college` is False (legacy default): recipe metadata supplies `college`, preserving the legacy CEIT default only when no metadata is provided.
+5. **Arbitrary Unknown Fields**:
+   `runtime attribute on info > recipe metadata fallback > ""`.
 
 ---
 

@@ -100,6 +100,7 @@ cache_key = (absolute_template_path, profile_id, sha256_fingerprint)
 ## 📐 Generator Integration & Pure Recipe Execution
 
 ### 1. Academic & CEIT Forms (`modules/generators/document_generator.py`, `ceit_gen.py`)
+- The DOCX execution engine no longer contains an inline field-to-ClassInfo mapping. Field semantics are centralized in `FieldResolver`.
 - Base class `DocumentGenerator` requires `(template_path: str, recipe: ValidatedTemplateRecipe)`.
 - Metadata values are resolved through `FieldResolver.resolve_field_value(field_name, info, recipe)`.
 - Metadata is written by inspecting `recipe.header_bindings`, targeting specific cells `(table_idx, row_idx, col_idx)` or paragraph indices.
