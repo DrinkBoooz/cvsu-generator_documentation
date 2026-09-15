@@ -169,6 +169,7 @@ Target 12 was audited against the comprehensive 23-attribute checklist, and any 
   - `tests/test_recipe_stage1.py::test_recipe_to_dict_never_contains_construction_token`
 - **Runtime verification status**: **Source-verified**, **Test-verified**, **Template-verified**.
 - **Known limitations**: Only supports Microsoft Word `.docx` custom templates; custom Excel grading templates require dedicated profile extensions.
+- **Workflow boundary**: Enabled custom forms appear in the main CEIT package workflow and use their persisted recipe suffix/output-folder metadata. Attendance calendar matrices remain owned by the native attendance engine and are not part of the generic `custom_docx` profile contract.
 - **Evidence/source references**:
   - `modules/generators/generic_doc_gen.py:1–49`
   - `modules/generators/ceit_gen.py:202–208` (`_fill_student_row` index col logic)

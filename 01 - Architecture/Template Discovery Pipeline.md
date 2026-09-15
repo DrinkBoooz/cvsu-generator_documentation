@@ -99,6 +99,12 @@ cache_key = (absolute_template_path, profile_id, sha256_fingerprint)
 
 ## 📐 Generator Integration & Pure Recipe Execution
 
+### Phase 4 Workflow Boundaries
+- Enabled custom `.docx` templates are surfaced in the main CEIT package workflow and are included by `GeneratorFactory` during CEIT generation. Their persisted recipe metadata remains authoritative for suffix and output-folder routing.
+- Start-date and end-date inputs are optional; they refine attendance generation when supplied but do not block the overall workflow readiness state.
+- Attendance-shaped matrix templates remain outside the generic `custom_docx` profile contract. The native attendance engine owns calendar/date-matrix generation; custom generic forms use the recipe-driven static document path.
+- XLSX signature discovery prefers merged structural geometry. The bounded proximity/offset fallback remains a compatibility path for legacy sheets without a discoverable merged signature box and is covered by a focused regression test.
+
 ### 1. Academic & CEIT Forms (`modules/generators/document_generator.py`, `ceit_gen.py`)
 - The DOCX execution engine no longer contains an inline field-to-ClassInfo mapping. Field semantics are centralized in `FieldResolver`.
 - Base class `DocumentGenerator` requires `(template_path: str, recipe: ValidatedTemplateRecipe)`.
