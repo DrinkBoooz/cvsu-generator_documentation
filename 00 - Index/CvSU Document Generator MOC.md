@@ -88,6 +88,7 @@ graph TD
 ## 🧭 Vault Navigation
 
 ### 🏗️ 01 - Architecture & Design
+
 - **[[System Architecture]]**: High-level hybrid desktop architecture, PyWebView runtime, file:/// URI transport, and presentation layer.
 - **[[PyWebView Bridge]]**: Modular `ScriptAPI` mixin structure, IPC contracts, and non-blocking diagnostic telemetry subsystem.
 - **[[Generator Pipeline]]**: Data parsing, class matching, and generator routing pipeline.
@@ -96,6 +97,7 @@ graph TD
 - **[[UI Architecture]]**: Responsive 6-step workflow stepper, decoupled CSS architecture, inline visibility failsafe, and accessibility (WCAG 2.1 AA).
 
 ### ⚙️ 02 - Document Generators
+
 - **[[Generators Overview]]**: Technical comparison and contracts across the 3 document generation engines and generic pipeline.
 - **[[CEIT Generator]]**: Document generation for official CEIT department forms (`ceit_gen.py`).
 - **[[Attendance Generator]]**: Dynamic calendar parsing and monthly attendance sheets (`attendance_gen.py`).
@@ -103,17 +105,20 @@ graph TD
 - **[[Generic Document Generator]]**: Dynamic Word document rendering for custom user-supplied templates (`generic_doc_gen.py`).
 
 ### 📋 03 - Templates & Schemas
+
 - **[[Template Guidelines]]**: Global template architecture, bundle mechanisms, and font auto-scaling safeguards.
 - **[[CEIT Templates]]**: Word `.docx` table layout schemas and placeholder replacement keys.
 - **[[Attendance Templates]]**: Attendance `.docx` column structures and calendar cells.
 - **[[Grading Templates]]**: Excel `.xlsx` Lecture and Lecture & Lab workbook layouts and formula ranges.
 
 ### 📖 04 - User Guides & Operations
+
 - **[[User Manual]]**: Comprehensive 6-step guide for faculty members using the graphical interface.
 - **[[Input File Conventions]]**: Faculty schedule spreadsheets and student roster naming rules.
 - **[[Troubleshooting]]**: Windows SmartScreen resolution, publisher certificates, and error diagnostics.
 
 ### 🛠️ 06 - Development & Operations
+
 - **[[Development Workflow]]**: Branching strategy (`dev` vs `main`), commit rules, and versioning.
 - **[[Testing Strategy]]**: Automated test suites in `tests/`, Pytest fixtures, Playwright UI testing, and vault verification.
 - **[[Build & Packaging]]**: PyInstaller standalone executable bundling, PE metadata, and Authenticode signing.
@@ -121,11 +126,13 @@ graph TD
 - **[[HIG & UX Audit]]**: Analysis of Apple Human Interface Guidelines and WCAG 2.1 compliance.
 
 ### 🚀 05 - Releases & Changelogs
+
 - **[[v1.0.1]]**: Release notes for version 1.0.1 (Visual Stepper, Cancellation Engine, Toast Notifications, Playwright E2E).
 
 ---
 
 ## ⚡ Quick Reference
+
 - **Author & Publisher**: Dan Joseph Ortega (© 2026 Dan Joseph Ortega. All rights reserved.)
 - **Application Repository**: `C:\Users\danjo\OneDrive\CVSU GENERATORS` (`DrinkBoooz/cvsu-generators`)
 - **Active Development Branch**: `dev`
