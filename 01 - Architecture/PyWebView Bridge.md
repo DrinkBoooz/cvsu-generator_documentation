@@ -6,7 +6,7 @@ tags:
   - pywebview
   - ipc
 status: active
-last_modified: 2026-09-13
+last_modified: 2026-09-17
 source_of_truth:
   - executable_test/api/__init__.py
   - executable_test/api/base.py
@@ -15,6 +15,7 @@ source_of_truth:
   - executable_test/api/templates.py
   - executable_test/api/system.py
   - executable_test/api/generation.py
+  - executable_test/main.py
 ---
 
 # PyWebView Bridge
@@ -26,6 +27,7 @@ Related notes:
 - [[System Architecture]]
 - [[Orchestrator Lifecycle]]
 - [[UI Architecture]]
+- [[Testing Strategy]]
 
 ---
 
@@ -202,9 +204,54 @@ Sets `self._cancel_event` under `self._lock`. The orchestrator polls this event 
 
 ---
 
+## 🔍 Diagnostic Subsystem & Telemetry Engine
+
+Implemented in `executable_test/main.py:_setup_diagnostics(window)` (introduced in Commit `139`), this subsystem provides non-intrusive runtime network tracing for pywebview desktop instances:
+
+```mermaid
+graph LR
+    subgraph PyWebView ["PyWebView / WebView2"]
+        Req["events.request_sent"]
+        Resp["events.response_received"]
+    end
+
+    subgraph MemoryBuffer ["Zero-I/O In-Memory Buffer"]
+        Lock["threading.Lock"]
+        Queue["deque(maxlen=1000)"]
+    end
+
+    subgraph BackgroundFlusher ["Daemon Flusher Thread"]
+        Worker["flush_worker(interval=0.5s)"]
+        Disk["%TEMP%/cvsu_diagnostics/*.jsonl"]
+    end
+
+    Req -->|"on_request (tuple)"| Lock
+    Resp -->|"on_response (1 arg)"| Lock
+    Lock --> Queue
+    Queue -.->|"batch copy"| Worker
+    Worker --> Disk
+```
+
+### Core Contracts:
+1. **Activation Gating**: Controlled by the environment variable `CVSU_DIAGNOSTIC_MODE=1`. When unset or `"0"`, diagnostic listeners and the background flusher thread are not registered. No application-runtime behavior changes when diagnostic mode is disabled.
+2. **Zero-I/O Fast-Path Callbacks**: Event callbacks `on_request` and `on_response` perform zero synchronous disk writes and zero JSON serialization. Records are stored as lightweight tuples in an in-memory `collections.deque(maxlen=1000)` protected by a `threading.Lock()`.
+3. **Single-Argument Response Signature**: Conforms to PyWebView 6.2.1 dispatch (`events.response_received += on_response`), accepting exactly one `Response` object:
+   ```python
+   def on_response(response):
+       url = getattr(response, "url", "")
+       status = getattr(response, "status_code", None)
+       with diag_lock:
+           diag_buffer.append(("response_received", time.time(), url, status))
+   ```
+4. **Asynchronous Daemon Flusher**: A background daemon thread periodically wakes, acquires the lock, drains queued entries, and writes JSON Lines records to `%TEMP%/cvsu_diagnostics/cvsu_exe_diag_<timestamp>.jsonl`.
+5. **Runtime Telemetry Disparity Semantics**: Observed telemetry logs may report slightly different `request_sent` and `response_received` counts (e.g. 21 requests vs. 22 responses). The browser engine dispatches response events for inline data URIs (such as base64 SVGs) or cached resources without emitting a distinct network `request_sent` callback.
+
+---
+
 ## 🔒 Thread Safety Notes
 
 - `self._is_processing` is written exclusively under `self._lock`.
 - `self._cancel_event` is a `threading.Event` — `set()` and `is_set()` are inherently thread-safe.
 - `self._window.evaluate_js(...)` is called from the worker thread; pywebview marshals these calls back to the UI thread.
 - All JS callbacks are no-ops if `self._is_window_closed` is `True` (set by the `closing` and `closed` window events).
+- Diagnostic telemetry buffer (`diag_buffer`) is guarded by `diag_lock` across callbacks and background flusher threads.

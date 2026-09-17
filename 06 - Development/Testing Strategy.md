@@ -6,9 +6,11 @@ tags:
   - pytest
   - playwright
 status: active
-last_modified: 2026-09-13
+last_modified: 2026-09-17
 source_of_truth:
   - tests/
+  - tests/test_ui_asset_resilience.py
+  - tests/test_diagnostic_probe.py
   - pytest.ini
   - AGENTS.md
 ---
@@ -21,6 +23,8 @@ Related notes:
 - [[CvSU Document Generator MOC]]
 - [[Development Workflow]]
 - [[Build & Packaging]]
+- [[UI Architecture]]
+- [[PyWebView Bridge]]
 
 ---
 
@@ -37,6 +41,8 @@ graph TD
     Tests["tests/ Suite"] --> Unit["Unit & Parsing Tests"]
     Tests --> DocxXlsx["Generator & Template Tests"]
     Tests --> Integ["UI Bridge & Consistency Tests"]
+    Tests --> Resilience["UI Resilience & Transport Tests"]
+    Tests --> Diag["Diagnostic Hook Tests"]
     Tests --> E2E["Playwright Browser Tests"]
     Tests --> Build["PyInstaller Executable Tests"]
     Tests --> Vault["Obsidian Vault Integrity Tests"]
@@ -44,16 +50,18 @@ graph TD
     Unit --> T1["test_modules_parsing.py<br>test_roster_parser.py"]
     DocxXlsx --> T2["test_modules_generation.py<br>test_grade_generator.py"]
     Integ --> T3["test_ui_consistency.py<br>test_executable_test_api_bindings.py"]
-    E2E --> T4["test_playwright_e2e.py<br>test_playwright_roster_mapping.py"]
-    Build --> T5["test_pe_version_info.py"]
-    Vault --> T6["test_obsidian_vault_integrity.py"]
+    Resilience --> T4["test_ui_asset_resilience.py"]
+    Diag --> T5["test_diagnostic_probe.py"]
+    E2E --> T6["test_playwright_e2e.py<br>test_playwright_roster_mapping.py"]
+    Build --> T7["test_pe_version_info.py"]
+    Vault --> T8["test_obsidian_vault_integrity.py"]
 ```
 
 ### 1. Fast Unit & Integration Testing
 ```bash
 pytest tests/ -k "not test_playwright"
 ```
-Runs ~200 automated unit tests covering parser edge cases, name shrinking thresholds, schedule tokenization, and UI consistency checks in under 20 seconds.
+Runs automated unit tests covering parser edge cases, name shrinking thresholds, schedule tokenization, and UI consistency checks in under 20 seconds.
 
 ### 2. UI Consistency & Bridge Mock Testing (`test_ui_consistency.py`, `test_executable_test_api_bindings.py`)
 Validates that:
@@ -62,18 +70,31 @@ Validates that:
 - Release version badge in header matches the expected current release.
 - Python API mixin methods correctly resolve to JavaScript window binding properties (`window.pywebview.api`).
 
-### 3. Playwright End-to-End Testing
+### 3. UI Asset Resilience & Transport Testing (`tests/test_ui_asset_resilience.py`)
+Registered under the custom `@pytest.mark.desktop_integration` marker in `pytest.ini`. Validates:
+- **Critical Inline Failsafe**: Asserts that `ui.html` contains the inline `<style>.d-none { display: none !important; }</style>` in `<head>`.
+- **CSS Architecture Coverage**: Verifies that `.d-none` is defined in `base.css`, component styles reside in `components.css`, and `drawers.css` maintains isolated rules.
+- **URI Transport Resolution**: Confirms that document URLs resolve to explicit `file:///` URIs rather than `http://localhost`.
+- **Lifecycle Sentinels**: Verifies that `app.js` defines `bootstrapApp()` and inspects `document.readyState`.
+
+### 4. Diagnostic Hook & Probe Testing (`tests/test_diagnostic_probe.py`)
+Validates the diagnostic tracing subsystem in `executable_test/main.py`:
+- **Zero-I/O Fast Path**: Asserts that `on_request` and `on_response` callbacks perform zero synchronous filesystem `open()` calls and zero JSON serialization.
+- **Callback Signature Conformance**: Asserts that `on_response(response)` accepts exactly one argument matching PyWebView 6.2.1 dispatch and extracts `response.status_code`.
+- **Production Dormancy**: Verifies that when `CVSU_DIAGNOSTIC_MODE` is unset or `"0"`, diagnostic listeners and flusher threads are not installed.
+
+### 5. Playwright End-to-End Testing
 ```bash
 pytest tests/test_playwright_e2e.py
 ```
 Validates the UI in an actual browser engine, testing file drag-and-drop ingestion, stepper navigation, theme switching performance, and modal interaction.
 
-### 4. PyInstaller Build Tests (`test_pe_version_info.py`)
+### 6. PyInstaller Build Tests (`test_pe_version_info.py`)
 Validates the executable packaging output:
 - Ensures the generated `CvSU Gen.exe` contains the correct FileVersion, ProductVersion, and Copyright metadata.
 - Validates the PE (Portable Executable) headers using `pefile`.
 
-### 5. Obsidian Documentation Vault Integrity (`test_obsidian_vault_integrity.py`)
+### 7. Obsidian Documentation Vault Integrity (`test_obsidian_vault_integrity.py`)
 Validates that all documentation notes in `cvsu-generator_documentation`:
 - Exist in their required folders (`00` to `06`).
 - Contain valid YAML frontmatter (`title`, `status`, `last_modified`, `source_of_truth`).

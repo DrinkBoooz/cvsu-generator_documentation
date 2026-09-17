@@ -6,7 +6,7 @@ tags:
   - pyinstaller
   - codesign
 status: active
-last_modified: 2026-09-13
+last_modified: 2026-09-17
 source_of_truth:
   - executable_test/build.bat
   - executable_test/CvSU Gen.spec
@@ -23,6 +23,7 @@ Related notes:
 - [[Development Workflow]]
 - [[Testing Strategy]]
 - [[Troubleshooting]]
+- [[UI Architecture]]
 
 ---
 
@@ -51,6 +52,7 @@ Contains official PE version details:
 - `--windowed`: Suppresses the console window.
 - `--add-data`: Bundles `ui.html`, `css/`, `js/`, `templates/`, and `attendance/`.
 - `--collect-submodules modules`: Ensures all dynamic generator imports are packaged.
+- **Runtime Unpacking & `file:///` Resolution**: In the packaged binary, PyInstaller unpacks bundled resources into a transient directory (`sys._MEIPASS`). Because the application addresses assets using resolved file URIs (`Path(html_template).resolve().as_uri()`), WebView2 accesses the unpacked files directly via `file:///`, completely avoiding the need to bind a localhost HTTP socket inside the packaged executable.
 
 ### 3. WebView2 Runtime Dependency Mechanics
 The application relies on `pywebview` using the Edge/WebView2 rendering engine on Windows.
@@ -63,4 +65,10 @@ Digitally signs `dist/CvSU Gen.exe` using `signtool.exe` with Dan Joseph Ortega'
 ```powershell
 signtool.exe sign /fd SHA256 /a /tr http://timestamp.digicert.com /td SHA256 "dist\CvSU Gen.exe"
 ```
-Ensures Windows UAC and SmartScreen prompts identify the verified publisher.
+Ensures Windows UAC and SmartScreen prompts identify the verified publisher (`CN=Dan Joseph Ortega`).
+
+> [!IMPORTANT]
+> **PE Binary Signing vs. Git Commit Signing**:
+> Windows PE Authenticode binary signing (applied to `.exe` files) and Git commit signing (applied to Git commits) are strictly separate mechanisms:
+> - The compiled standalone executable `dist/CvSU Gen.exe` is signed with the institutional Authenticode certificate.
+> - Git commits on GitHub are tracked independently and are not signed with PE certificates.

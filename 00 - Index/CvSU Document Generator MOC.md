@@ -5,7 +5,7 @@ tags:
   - index
   - moc
 status: active
-last_modified: 2026-09-15
+last_modified: 2026-09-17
 source_of_truth:
   - executable_test/
   - modules/
@@ -88,12 +88,12 @@ graph TD
 ## 🧭 Vault Navigation
 
 ### 🏗️ 01 - Architecture & Design
-- **[[System Architecture]]**: High-level application architecture, PyWebView runtime, and subprocess isolation.
-- **[[PyWebView Bridge]]**: Modular `ScriptAPI` mixin structure (`ScheduleRosterMixin`, `ConfigMixin`, `TemplateMixin`, `SystemMixin`, `GenerationMixin`).
+- **[[System Architecture]]**: High-level hybrid desktop architecture, PyWebView runtime, file:/// URI transport, and presentation layer.
+- **[[PyWebView Bridge]]**: Modular `ScriptAPI` mixin structure, IPC contracts, and non-blocking diagnostic telemetry subsystem.
 - **[[Generator Pipeline]]**: Data parsing, class matching, and generator routing pipeline.
 - **[[Template Discovery Pipeline]]**: Dynamic template discovery, recipe validation, schema v2 contracts, and immutable lifecycle.
 - **[[Orchestrator Lifecycle]]**: Threading, progress telemetry, cancellation tokens, and error aggregation in `process_all`.
-- **[[UI Architecture]]**: Responsive 6-step workflow stepper, themes, toast engine, and accessibility (WCAG 2.1 AA).
+- **[[UI Architecture]]**: Responsive 6-step workflow stepper, decoupled CSS architecture, inline visibility failsafe, and accessibility (WCAG 2.1 AA).
 
 ### ⚙️ 02 - Document Generators
 - **[[Generators Overview]]**: Technical comparison and contracts across the 3 document generation engines and generic pipeline.

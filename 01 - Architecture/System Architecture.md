@@ -5,10 +5,14 @@ tags:
   - architecture
   - pywebview
 status: active
-last_modified: 2026-09-13
+last_modified: 2026-09-17
 source_of_truth:
   - executable_test/main.py
   - executable_test/api/
+  - executable_test/ui.html
+  - executable_test/css/base.css
+  - executable_test/css/components.css
+  - executable_test/js/app.js
   - modules/services/orchestrator.py
 ---
 
@@ -23,6 +27,7 @@ Related notes:
 - [[Orchestrator Lifecycle]]
 - [[UI Architecture]]
 - [[Generators Overview]]
+- [[Testing Strategy]]
 
 ---
 
@@ -75,9 +80,11 @@ graph LR
 
 ## 🧩 Architectural Subsystems
 
-### 1. Presentation Layer (`executable_test/`)
-- Single-page application hosted in `executable_test/ui.html`.
-- Modular vanilla JavaScript components loaded in strict dependency order. This UI modularization (Commit `91`) split the monolithic logic into focused controllers:
+### 1. Presentation & Transport Layer (`executable_test/`)
+- **Transport Scheme (`file:///`)**: In Commit `138`, application transport was migrated from an internal localhost HTTP server to an explicit resolved file URI (`document_url = Path(html_template).resolve().as_uri()`), eliminating loopback port contention, WSGI queueing, and startup socket starvation.
+- **Single-Page Application**: Hosted in `executable_test/ui.html` with an inline `<style>.d-none { display: none !important; }</style>` failsafe in `<head>` to enforce visibility state prior to external asset loading.
+- **Decoupled CSS Architecture**: Separated into `css/base.css` (design tokens, reset, `.d-none`), `css/components.css` (stepper, dock, toasts, cards), `css/drawers.css`, and `css/modals.css`.
+- **Modular Vanilla JavaScript**: Loaded in strict dependency order and coordinated by `bootstrapApp()` in `js/app.js`, which checks `document.readyState` and manages `window.__app_initialized__` and `window.__app_bootstrap_runs` sentinels:
   - `state.js`: Central reactive state store (`AppState`).
   - `theme.js`: Dark / Light theme transition manager.
   - `stepper.js`: Workflow navigation and step progression.
