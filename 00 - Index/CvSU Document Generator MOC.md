@@ -127,6 +127,7 @@ graph TD
 
 ### 🚀 05 - Releases & Changelogs
 
+- **[[v1.1.0]]**: Release notes for version 1.1.0 (Apple HIG Faculty Defaults, Document Header Live Preview, Uniform Settings Geometry, Elastic Tables, Dynamic Date Chip).
 - **[[v1.0.1]]**: Release notes for version 1.0.1 (Visual Stepper, Cancellation Engine, Toast Notifications, Playwright E2E).
 
 ---
