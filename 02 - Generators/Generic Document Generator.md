@@ -7,7 +7,7 @@ tags:
   - custom
   - docx
 status: active
-last_modified: 2026-09-15
+last_modified: 2026-09-18
 source_of_truth:
   - modules/generators/generic_doc_gen.py
   - modules/generators/document_generator.py

@@ -6,7 +6,7 @@ tags:
   - grades
   - xlsx
 status: active
-last_modified: 2026-09-15
+last_modified: 2026-09-18
 source_of_truth:
   - modules/generators/grade_gen.py
   - modules/services/orchestrator.py
