@@ -7,7 +7,7 @@ tags:
   - discovery
   - recipes
 status: active
-last_modified: 2026-09-15
+last_modified: 2026-09-18
 source_of_truth:
   - modules/parsers/semantic_registry.py
   - modules/models/recipe.py
@@ -22,7 +22,7 @@ source_of_truth:
 
 # Template Discovery Pipeline
 
-The **Template Discovery Pipeline** is the authoritative subsystem responsible for dynamically scanning, validating, and binding Microsoft Word (`.docx`) and Excel (`.xlsx`) document templates. The recipe-driven CEIT DOCX and grading XLSX paths replace their structural positional bindings with an immutable, validated recipe lifecycle. The attendance generator and compatibility facades remain legacy paths and are not represented as fully recipe-driven execution.
+The **Template Discovery Pipeline** is the authoritative subsystem responsible for dynamically scanning, validating, and binding Microsoft Word (`.docx`) and Excel (`.xlsx`) document templates. The recipe-driven CEIT DOCX and grading XLSX paths replace their structural positional bindings with an immutable, validated recipe lifecycle. The attendance generator remains an explicitly isolated migration boundary.
 
 Related notes:
 - [[CvSU Document Generator MOC]]
@@ -31,6 +31,91 @@ Related notes:
 - [[Orchestrator Lifecycle]]
 - [[CEIT Generator]]
 - [[Generic Document Generator]]
+- [[Attendance Generator]]
+
+---
+
+## 🏛️ Target Architecture Overview
+
+The system enforces the fundamental architectural invariant:
+> **"The inspector determines WHERE. The generator determines WHAT."**
+
+```mermaid
+flowchart TD
+    subgraph APP["Application Backend"]
+        ORCH["orchestrator.py"]
+        DATA["ClassInfo / schedule / roster"]
+        ROUTER["Generator routing"]
+    end
+
+    subgraph TEMPLATE_ENGINE["Authoritative Template Engine"]
+        RESOLVER["TemplateRecipeResolver (Singleton Cache)"]
+        REG["semantic_registry.py"]
+        DOCX["DocxTemplateInspector"]
+        XLSX["XlsxTemplateInspector"]
+        CANDIDATE["RawTemplateRecipeCandidate"]
+        VALIDATOR["RecipeValidator (Safety Gate)"]
+        RECIPE["ValidatedTemplateRecipe (Immutable v2)"]
+    end
+
+    subgraph GENERATORS["Generation Layer"]
+        GENERIC["ConfigurableDocumentGenerator<br/>CUSTOM / GENERIC (Reference)"]
+        SYL["SyllabusGenerator"]
+        EXAM["ExamReturnsGenerator"]
+        TOS["TOSGenerator"]
+        GD["GradeDiscussionGenerator"]
+        GG["GradeGenerator"]
+    end
+
+    subgraph BOUNDARY["Isolated Migration Boundary"]
+        ATT["attendance_gen.py<br/>(Dynamic Calendar Matrix)"]
+    end
+
+    ERROR["TemplateError / AmbiguousTemplateError"]
+    OUTPUT["Generated DOCX / XLSX"]
+
+    ORCH --> DATA
+    ORCH --> ROUTER
+
+    ROUTER --> RESOLVER
+    RESOLVER --> DOCX
+    RESOLVER --> XLSX
+
+    REG --> DOCX
+    REG --> XLSX
+
+    DOCX --> CANDIDATE
+    XLSX --> CANDIDATE
+
+    CANDIDATE --> VALIDATOR
+
+    VALIDATOR -->|Valid & Safe| RECIPE
+    VALIDATOR -->|Invalid / Ambiguous| ERROR
+
+    DATA --> GENERIC
+    DATA --> SYL
+    DATA --> EXAM
+    DATA --> TOS
+    DATA --> GD
+    DATA --> GG
+
+    RECIPE --> GENERIC
+    RECIPE --> SYL
+    RECIPE --> EXAM
+    RECIPE --> TOS
+    RECIPE --> GD
+    RECIPE --> GG
+
+    GENERIC --> OUTPUT
+    SYL --> OUTPUT
+    EXAM --> OUTPUT
+    TOS --> OUTPUT
+    GD --> OUTPUT
+    GG --> OUTPUT
+
+    ROUTER -.->|Isolated Pipeline| ATT
+    ATT --> OUTPUT
+```
 
 ---
 
@@ -136,3 +221,20 @@ cache_key = (absolute_template_path, profile_id, sha256_fingerprint)
    `recipe.to_dict()` strictly omits `_construction_token`. `validate_dict()` rejects any externally supplied `_construction_token` with `InvalidRecipeError`.
 3. **AST Static Analysis (`tests/test_ast_rules.py`)**:
    Enforces that no production generator or service directly calls `ValidatedTemplateRecipe(...)`, uses hardcoded coordinates (`ws['C1']`, `tables[0]`), or instantiates generators without a validated recipe.
+
+---
+
+## 📊 Production Generator Migration Matrix
+
+The authoritative binding status across all generator engines:
+
+| Generator Class | Template Family & File | Current Binding Mechanism | Uses Recipe Discovery? | Remaining Heuristic / Positional Assumptions | Target Recipe Binding | Migration Status | Tests Proving Resilience |
+| :--- | :--- | :--- | :---: | :--- | :--- | :---: | :--- |
+| **`ConfigurableDocumentGenerator`** | Custom DOCX (Any user `.docx`) | Dynamic `ValidatedTemplateRecipe` | **Yes** | None (Architectural reference) | `HeaderCellBinding`, `RosterBinding`, `placeholders` | **Migrated (Reference)** | `test_custom_template_pipeline.py`, `test_diverse_templates.py` |
+| **`SyllabusGenerator`** | Academic DOCX (`template_syllabus.docx`) | `DocumentGenerator` base class via `ValidatedTemplateRecipe` | **Yes** | None (Obsolete heuristics eliminated) | `recipe.header_bindings`, `recipe.roster_binding` | **Migrated** | `test_template_mutations.py::test_m1`, `test_m2`, `test_m3`, `test_invalid_templates.py` |
+| **`ExamReturnsGenerator`** | Academic DOCX (`template_exam_midterm.docx`, `template_exam_finals.docx`) | `DocumentGenerator` base class via `ValidatedTemplateRecipe` | **Yes** | None (Obsolete heuristics eliminated) | `recipe.header_bindings`, `recipe.roster_binding` | **Migrated** | `test_template_mutations.py::test_m4_exam_swap_roster_columns`, `test_ast_rules.py` |
+| **`TOSGenerator`** | Academic DOCX (`template_tos_midterm.docx`, `template_tos_finals.docx`) | `DocumentGenerator` base class via `ValidatedTemplateRecipe` | **Yes** | None (Obsolete heuristics eliminated) | `recipe.header_bindings`, `recipe.roster_binding` | **Migrated** | `test_modules_generation.py`, `test_ast_rules.py` |
+| **`GradeDiscussionGenerator`** | Academic DOCX (`Midterm-Grade-Discussion_LATEST.docx`, `Final-Grade-Discussion_LATEST.docx`) | `DocumentGenerator` base class via `ValidatedTemplateRecipe` | **Yes** | None (Obsolete heuristics eliminated) | `recipe.header_bindings`, `recipe.roster_binding` | **Migrated** | `test_template_mutations.py::test_m5_grade_discussion_2col_layout`, `test_ast_rules.py` |
+| **`GradeGenerator`** | Grading Sheet XLSX (`GRADING_LECTURE_TEMPLATE.xlsx`, `GRADING_LECTURE_LAB_TEMPLATE.xlsx`) | Dynamic Openpyxl cell binding via `ValidatedTemplateRecipe` | **Yes** | None (Zero hardcoded coordinates) | `recipe.header_bindings` (cells), `recipe.roster_binding` (worksheet, start row, cols, capacity), `recipe.signature_bindings` (structural boxes) | **Migrated** | `test_template_mutations.py::test_m6`, `test_m7`, `test_m8`, `test_m9`, `test_m10`, `test_grade_generator.py` |
+| **`AttendanceGenerator` (`build_attendance_sheet`)** | Attendance DOCX (`template lec.docx`, `template lab and lec.docx`) | Positional table index (`tables[0]`, `tables[1]`) & XML column reconstruction | **No** | Requires `tables[0]` for info, `tables[1]` for attendance matrix, fixed pct widths | **Isolated Migration Boundary** (Dynamic calendar ISO week matrix) | **Isolated (Boundary)** | `test_attendance_schedule_parsing.py`, `test_attendance_name_scaling.py` |
+

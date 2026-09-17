@@ -6,7 +6,7 @@ tags:
   - attendance
   - docx
 status: active
-last_modified: 2026-09-15
+last_modified: 2026-09-18
 source_of_truth:
   - modules/generators/attendance_gen.py
   - modules/services/orchestrator.py
@@ -22,6 +22,22 @@ Related notes:
 - [[Generators Overview]]
 - [[Attendance Templates]]
 - [[Template Guidelines]]
+- [[Template Discovery Pipeline]]
+
+---
+
+## 🚧 Architectural Isolation Boundary
+
+While all academic CEIT forms (`SyllabusGenerator`, `ExamReturnsGenerator`, `TOSGenerator`, `GradeDiscussionGenerator`), generic custom documents (`ConfigurableDocumentGenerator`), and grading workbooks (`GradeGenerator`) are governed by the authoritative `ValidatedTemplateRecipe` pipeline (`TemplateRecipeResolver` → `Inspector` → `RecipeValidator`), the **Attendance Generator remains an intentionally isolated architectural boundary**:
+
+1. **Dynamic ISO Calendar Week Calculations**:
+   Attendance generation is intrinsically bound to calendar mathematics (`calendar.monthrange`, `dt.weekday()`, ISO week bucketing via `dates_to_weeks()`). The number of session columns cannot be determined statically by inspecting template structure; it varies dynamically per month, per day schedule, and per semester date boundary.
+2. **Dynamic XML Grid Resizing & GridSpan**:
+   Unlike static forms where rows/columns have fixed layout geometry, `attendance_gen.py` wipes and rebuilds the Word table XML grid `<w:tblGrid>` from scratch, calculating column widths from a pool (`5000 pct`) and assigning dynamic `<w:gridSpan>` to merged `WEEK X` header cells based on session meeting count.
+3. **Schema Isolation**:
+   The `ValidatedTemplateRecipe` schema (Schema Version 2) models static cell coordinates (`HeaderCellBinding`) and static table/column mappings (`RosterBinding`). Forcing dynamic calendar matrix generation into Schema v2 would require expanding the recipe contract with calendar-specific fields, coupling static document discovery to temporal scheduling rules.
+4. **Preserved Reliability**:
+   Isolating attendance ensures zero regression risk to the proven, production-grade calendar geometry engine. It is invoked directly by `orchestrator.py` via `generate_attendance_for_month()`.
 
 ---
 
