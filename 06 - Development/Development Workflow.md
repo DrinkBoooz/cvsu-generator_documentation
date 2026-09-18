@@ -6,9 +6,13 @@ tags:
   - git
   - workflow
 status: active
-last_modified: 2026-09-13
+last_modified: 2026-09-18
 source_of_truth:
   - AGENTS.md
+  - requirements-runtime.txt
+  - requirements-test.txt
+  - requirements-build.txt
+  - requirements.txt
 ---
 
 # Development Workflow
@@ -20,6 +24,36 @@ Related notes:
 - [[Testing Strategy]]
 - [[Build & Packaging]]
 - [[v1.0.1]]
+
+---
+
+## 📦 Dependency Manifest Architecture & Environment Setup
+
+The repository defines an exact direct-dependency specification across four distinct manifests:
+
+| Manifest | Purpose | Direct Packages Included |
+| :--- | :--- | :--- |
+| **`requirements-runtime.txt`** | Production runtime only | `pywebview==6.2.1`, `pythonnet==3.1.0`, `lxml==6.1.1`, `openpyxl==3.1.5`, `xlrd==2.0.2` |
+| **`requirements-test.txt`** | Testing & test development | `-r requirements-runtime.txt`, `pytest==9.1.1`, `python-docx==1.2.0`, `playwright==1.63.0` |
+| **`requirements-build.txt`** | PyInstaller standalone packaging | `-r requirements-runtime.txt`, `pyinstaller==6.22.2` |
+| **`requirements.txt`** | Aggregate developer setup | `-r requirements-test.txt`, `-r requirements-build.txt` |
+| **`executable_test/requirements-build.txt`** | Forwarding manifest for `build.bat` | `-r ../requirements-build.txt` |
+
+### Setting Up a Development Virtual Environment:
+```powershell
+# 1. Create and activate virtual environment (Python 3.10 - 3.14 x64)
+python -m venv .venv
+.\.venv\Scripts\activate
+
+# 2. Install aggregate developer dependencies
+python -m pip install -r requirements.txt
+
+# 3. Install Playwright Chromium browser binary
+python -m playwright install chromium
+
+# 4. Verify environment has no package dependency conflicts
+python -m pip check
+```
 
 ---
 

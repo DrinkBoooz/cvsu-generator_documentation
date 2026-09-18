@@ -6,11 +6,13 @@ tags:
   - pytest
   - playwright
 status: active
-last_modified: 2026-09-17
+last_modified: 2026-09-18
 source_of_truth:
   - tests/
   - tests/test_ui_asset_resilience.py
   - tests/test_diagnostic_probe.py
+  - tests/test_dependency_manifests.py
+  - tests/test_executable_lifecycle.py
   - pytest.ini
   - AGENTS.md
 ---
@@ -44,7 +46,9 @@ graph TD
     Tests --> Resilience["UI Resilience & Transport Tests"]
     Tests --> Diag["Diagnostic Hook Tests"]
     Tests --> E2E["Playwright Browser Tests"]
+    Tests --> Lifecycle["Native PyWebView Lifecycle Tests"]
     Tests --> Build["PyInstaller Executable Tests"]
+    Tests --> Manifests["Dependency Manifest Tests"]
     Tests --> Vault["Obsidian Vault Integrity Tests"]
 
     Unit --> T1["test_modules_parsing.py<br>test_roster_parser.py"]
@@ -52,10 +56,13 @@ graph TD
     Integ --> T3["test_ui_consistency.py<br>test_executable_test_api_bindings.py"]
     Resilience --> T4["test_ui_asset_resilience.py"]
     Diag --> T5["test_diagnostic_probe.py"]
-    E2E --> T6["test_playwright_e2e.py<br>test_playwright_roster_mapping.py"]
-    Build --> T7["test_pe_version_info.py"]
-    Vault --> T8["test_obsidian_vault_integrity.py"]
+    E2E --> T6["test_playwright_*.py"]
+    Lifecycle --> T7["test_executable_lifecycle.py"]
+    Build --> T8["test_pe_version_info.py"]
+    Manifests --> T9["test_dependency_manifests.py"]
+    Vault --> T10["test_obsidian_vault_integrity.py"]
 ```
+
 
 ### 1. Fast Unit & Integration Testing
 ```bash
@@ -83,19 +90,40 @@ Validates the diagnostic tracing subsystem in `executable_test/main.py`:
 - **Callback Signature Conformance**: Asserts that `on_response(response)` accepts exactly one argument matching PyWebView 6.2.1 dispatch and extracts `response.status_code`.
 - **Production Dormancy**: Verifies that when `CVSU_DIAGNOSTIC_MODE` is unset or `"0"`, diagnostic listeners and flusher threads are not installed.
 
-### 5. Playwright End-to-End Testing
+### 5. Playwright UI Browser Testing
+Validates the user interface within a real browser engine, testing file drag-and-drop ingestion, stepper navigation, theme switching performance, and modal interaction:
 ```bash
-pytest tests/test_playwright_e2e.py
-```
-Validates the UI in an actual browser engine, testing file drag-and-drop ingestion, stepper navigation, theme switching performance, and modal interaction.
+# Browser prerequisite: install Chromium binary
+python -m playwright install chromium
 
-### 6. PyInstaller Build Tests (`test_pe_version_info.py`)
+# Execute complete Playwright UI test suite
+pytest tests/test_playwright_*.py
+```
+> [!NOTE]
+> **Separation of Testing Concerns**:
+> Playwright UI tests run in headless Chromium against the mock bridge (`MOCK_API_INIT_SCRIPT`). They are strictly separate from native desktop pywebview lifecycle testing.
+
+### 6. Native Desktop PyWebView Lifecycle Testing (`tests/test_executable_lifecycle.py`)
+Validates actual native `pywebview` window creation, WinForms thread dispatch, event loops, and clean termination without hanging threads or orphaned processes.
+
+### 7. PyInstaller Build & Packaged Smoke Tests (`test_pe_version_info.py`, `test_packaged_executable_smoke.py`)
 Validates the executable packaging output:
 - Ensures the generated `CvSU Gen.exe` contains the correct FileVersion, ProductVersion, and Copyright metadata.
 - Validates the PE (Portable Executable) headers using `pefile`.
+- Verifies packaged executable live launch, 2-second startup stability, and process tree termination.
 
-### 7. Obsidian Documentation Vault Integrity (`test_obsidian_vault_integrity.py`)
+### 8. Dependency Architecture & Manifest Testing (`tests/test_dependency_manifests.py`)
+Validates that:
+- All four manifests (`requirements-runtime.txt`, `requirements-test.txt`, `requirements-build.txt`, `requirements.txt`) and `executable_test/requirements-build.txt` exist.
+- All production third-party imports in `modules/` and `executable_test/` map via explicit `IMPORT_TO_DIST` to packages declared in `requirements-runtime.txt`.
+- All direct dependencies use exact pins (`==`).
+- Excluded packages (`pypiwin32`, `pywin32`, `pytest-mock`, `pytest-playwright`) are absent.
+- `python-docx` is strictly a test dependency.
+- `executable_test/requirements-build.txt` forwards to `../requirements-build.txt`.
+
+### 9. Obsidian Documentation Vault Integrity (`test_obsidian_vault_integrity.py`)
 Validates that all documentation notes in `cvsu-generator_documentation`:
 - Exist in their required folders (`00` to `06`).
 - Contain valid YAML frontmatter (`title`, `status`, `last_modified`, `source_of_truth`).
 - Have valid wikilinks with zero broken targets.
+
