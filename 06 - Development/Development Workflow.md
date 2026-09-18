@@ -56,17 +56,29 @@ python -m pip check
 ```
 
 ### Verified Development Baseline & Environment Evidence:
-The reference environment used during dependency normalization and audit testing:
+The reference environment and revision pins used during dependency normalization and audit testing (all 11 planned verification steps were completed and are presented below in reordered validation categories for readability):
+
+- **Application Repository**:
+  - Repo: `DrinkBoooz/cvsu-generators`
+  - Branch: `dev`
+  - Commit: `bc0ffad1c0199a13a94de9fa328e22b521a4fc9f`
+  - Commit Message: `146: strengthen manifest tests with PEP 503 canonicalization and align system prerequisite documentation`
+- **Documentation Repository**:
+  - Repo: `DrinkBoooz/cvsu-generator_documentation`
+  - Branch: `dev`
+  - Commit: `4b5dd3d5004d1a0f577cdb6442e0796154b4f02a`
+  - Commit Message: `27: synchronize documentation with precise webview2 guidance and environment evidence`
 - **Python Runtime**: `Python 3.14.7` (64-bit AMD64)
 - **Package Manager**: `pip 26.2.1`
-- **Dependency Health**: `python -m pip check` &rarr; `No broken requirements found.`
+- **Installed-Environment Dependency Health**: `python -m pip check` &rarr; `No broken requirements found.`
+- **Forwarding Manifest Validation**: `pip install --dry-run --no-deps -r executable_test/requirements-build.txt` &rarr; pip dry-run direct-requirement / forwarding-manifest validation
 - **Playwright Engine**: `playwright==1.63.0`
 - **Browser Binary**: Chromium 153.0.8010.12 (`chromium-1243` / `chromium_headless_shell-1243`) at `%LOCALAPPDATA%\ms-playwright\chromium-1243\chrome-win64\chrome.exe`
-- **Core Test Commands**:
-  - `pytest tests/test_dependency_manifests.py -q`
-  - `pytest tests/ -k "not test_playwright" -q`
-  - `pytest tests/test_playwright_e2e.py tests/test_playwright_roster_mapping.py tests/test_playwright_settings_modal.py tests/test_playwright_accessibility.py tests/test_scroll_aware_dock.py tests/test_settings_modal_responsive.py tests/test_theme_transition_perf.py tests/test_ui_asset_resilience.py -q`
-  - `pytest tests/test_obsidian_vault_integrity.py -q`
+- **Core Test Telemetry & Categorization**:
+  - **Selected Unit / Parser / Generator Suite**: 369 selected unit/integration/parser/generator/template/API tests passed (371 passed with 2 added manifest tests, 2 skipped, 42 deselected). Note: native lifecycle tests, packaged executable tests, desktop integration tests, and UI/Playwright tests are run separately.
+  - **Complete Current UI Test Set**: 35 UI/Playwright/resilience tests passed across the complete current UI test set.
+  - **Obsidian Vault Integrity**: 4 passed in 0.07s (`pytest tests/test_obsidian_vault_integrity.py -q`).
+  - **Dependency Manifests**: 9 passed in 0.98s (`pytest tests/test_dependency_manifests.py -q`).
 
 ---
 

@@ -59,9 +59,11 @@ Contains official PE version details:
 
 ### 3. Windows System Prerequisites & Packaging Dependencies
 The standalone binary executes without requiring a local Python interpreter, but depends on the following host environment baseline:
+- **Python / Python Packages**: None required for the packaged executable. The Python runtime and application dependencies are embedded in `CvSU Gen.exe`.
 - **Microsoft Edge WebView2 Runtime**: Required system prerequisite. WebView2 is included with Windows 11; Microsoft documents Windows 10 v1803+ with the November 2022 update as the pre-installed baseline. However, some Windows 10, LTSC, managed, or clean systems may lack the Runtime. The application currently has no verified automated bootstrapper implementation; missing-runtime handling must be detected and reported by the system.
 - **.NET Framework 4.7.2+ Baseline**: Supported Windows baseline required for the Python.NET (`pythonnet`) `System.Windows.Forms` native desktop host and OLE drag-and-drop subsystem (`executable_test/native/dnd.py`). While Python.NET itself supports older runtimes and pywebview 6.2+ has a CoreCLR fallback, CvSU Generators' own `System.Windows.Forms` / native DnD path has not been established as CoreCLR-compatible; .NET Framework 4.7.2+ is the repository's supported baseline.
-- **Packaging Manifest (`requirements-build.txt`)**: Bundles `pyinstaller==6.22.2` alongside core production runtime dependencies. `executable_test/requirements-build.txt` acts as a forwarding manifest (`-r ../requirements-build.txt`). Extraneous packages (`pypiwin32` and `python-docx`) are strictly excluded from packaging.
+- **Office Software**: Microsoft Word & Excel or compatible office suite (only needed for opening/editing generated DOCX/XLSX files).
+- **Packaging Manifest (`requirements-build.txt`)**: Bundles `pyinstaller==6.22.2` alongside core production runtime dependencies. `executable_test/requirements-build.txt` acts as a forwarding manifest (`-r ../requirements-build.txt`). Extraneous packages (`pypiwin32` and `python-docx`) are strictly excluded from packaging. Forwarding manifest resolution is validated via pip dry-run direct-requirement / forwarding-manifest validation (`pip install --dry-run --no-deps -r executable_test/requirements-build.txt`).
 
 ### 4. Authenticode Code Signing (`sign_exe.ps1`)
 Digitally signs `dist/CvSU Gen.exe` using `signtool.exe` with Dan Joseph Ortega's institutional code signing certificate and RFC 3161 timestamping:
