@@ -27,8 +27,8 @@ Related notes:
 
 - **Operating System**: Windows 10 or Windows 11 (64-bit).
 - **Dependencies**: **None**. Fully standalone portable executable (`CvSU Gen.exe`) with embedded runtime. No Python installation required.
-- **Microsoft Edge WebView2 Runtime**: Required system prerequisite (pre-installed on Windows 11 and modern Windows 10). Missing runtime must be detected or reported by the system.
-- **.NET Framework 4.7.2+**: Supported Windows baseline required for the native desktop window host and drag-and-drop integration.
+- **Microsoft Edge WebView2 Runtime**: Required system prerequisite. Included with Windows 11; present on most Windows 10 installations (version 1803+ with November 2022 update baseline), though some LTSC, managed, or clean setups may lack it. Missing runtime must be detected or reported by the system (no automatic installer is bundled).
+- **.NET Framework 4.7.2+**: Supported Windows baseline required for the native desktop window host and drag-and-drop integration. While Python.NET supports older versions, 4.7.2+ is the repository's verified baseline.
 - **Office Software**: Microsoft Word & Excel or any compatible office suite (only required to view and edit generated documents; the generator itself creates files natively).
 
 ---

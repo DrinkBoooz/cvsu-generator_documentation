@@ -55,6 +55,19 @@ python -m playwright install chromium
 python -m pip check
 ```
 
+### Verified Development Baseline & Environment Evidence:
+The reference environment used during dependency normalization and audit testing:
+- **Python Runtime**: `Python 3.14.7` (64-bit AMD64)
+- **Package Manager**: `pip 26.2.1`
+- **Dependency Health**: `python -m pip check` &rarr; `No broken requirements found.`
+- **Playwright Engine**: `playwright==1.63.0`
+- **Browser Binary**: Chromium 153.0.8010.12 (`chromium-1243` / `chromium_headless_shell-1243`) at `%LOCALAPPDATA%\ms-playwright\chromium-1243\chrome-win64\chrome.exe`
+- **Core Test Commands**:
+  - `pytest tests/test_dependency_manifests.py -q`
+  - `pytest tests/ -k "not test_playwright" -q`
+  - `pytest tests/test_playwright_e2e.py tests/test_playwright_roster_mapping.py tests/test_playwright_settings_modal.py tests/test_playwright_accessibility.py tests/test_scroll_aware_dock.py tests/test_settings_modal_responsive.py tests/test_theme_transition_perf.py tests/test_ui_asset_resilience.py -q`
+  - `pytest tests/test_obsidian_vault_integrity.py -q`
+
 ---
 
 ## 🌿 Git Branching Strategy
