@@ -26,9 +26,9 @@ Related notes:
 ## 💻 System Requirements
 
 - **Operating System**: Windows 10 or Windows 11 (64-bit).
-- **Python / Python Packages**: None required for the packaged executable. The Python runtime and application dependencies are embedded in `CvSU Gen.exe`.
-- **Microsoft Edge WebView2 Runtime**: Required system prerequisite. Included with Windows 11; present on most Windows 10 installations (version 1803+ with November 2022 update baseline), though some LTSC, managed, or clean setups may lack it. Missing runtime must be detected or reported by the system (no automatic installer is bundled).
-- **.NET Framework 4.7.2+ Baseline**: Supported Windows baseline required for the native desktop window host and drag-and-drop integration. While Python.NET supports older versions, 4.7.2+ is the repository's verified baseline.
+- **Python / Python Packages**: None required on the target machine for the packaged executable. The Python runtime and application packages are embedded in `CvSU Gen.exe`.
+- **Microsoft Edge WebView2 Evergreen Runtime**: Required host prerequisite. Included with Windows 11; present on most Windows 10 installations (version 1803+ with November 2022 update baseline), though some LTSC, managed, or clean setups may lack it. The packaged application does not bundle an automatic WebView2 installer, and no explicit application-level runtime detector was verified in the current source.
+- **.NET Framework 4.7.2+ Project Baseline**: Supported Windows baseline required for the native desktop window host and drag-and-drop integration. While Python.NET supports older versions, 4.7.2+ is the repository's verified baseline.
 - **Office Software**: Microsoft Word & Excel or any compatible office suite (only needed for opening/editing generated DOCX/XLSX files; the generator itself creates files natively).
 
 ---

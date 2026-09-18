@@ -75,10 +75,15 @@ The reference environment and revision pins used during dependency normalization
 - **Playwright Engine**: `playwright==1.63.0`
 - **Browser Binary**: Chromium 153.0.8010.12 (`chromium-1243` / `chromium_headless_shell-1243`) at `%LOCALAPPDATA%\ms-playwright\chromium-1243\chrome-win64\chrome.exe`
 - **Core Test Telemetry & Categorization**:
-  - **Selected Unit / Parser / Generator Suite**: 369 selected unit/integration/parser/generator/template/API tests passed (371 passed with 2 added manifest tests, 2 skipped, 42 deselected). Note: native lifecycle tests, packaged executable tests, desktop integration tests, and UI/Playwright tests are run separately.
-  - **Complete Current UI Test Set**: 35 UI/Playwright/resilience tests passed across the complete current UI test set.
-  - **Obsidian Vault Integrity**: 4 passed in 0.07s (`pytest tests/test_obsidian_vault_integrity.py -q`).
-  - **Dependency Manifests**: 9 passed in 0.98s (`pytest tests/test_dependency_manifests.py -q`).
+  - **Installed Dependency Health (Step 1)**: `python -m pip check` &rarr; `No broken requirements found.`
+  - **Selected Unit / Parser / Generator Suite (Step 2)**: 369 selected unit/integration/parser/generator/template/API tests passed, including the 2 newly added dependency-manifest tests (with 2 skipped, 42 deselected). Note: native lifecycle tests, packaged executable tests, desktop integration tests, and UI/Playwright tests are run separately.
+  - **Complete Current UI Test Set (Step 3)**: 35 UI/Playwright/resilience tests passed across the complete current UI test set (`pytest tests/test_playwright_e2e.py tests/test_playwright_roster_mapping.py tests/test_playwright_settings_modal.py tests/test_playwright_accessibility.py tests/test_scroll_aware_dock.py tests/test_settings_modal_responsive.py tests/test_theme_transition_perf.py tests/test_ui_asset_resilience.py -q`).
+  - **Native Desktop Lifecycle Verification (Step 4)**: Verified via two separate executions:
+    - `pytest tests/test_executable_lifecycle.py -v` (2 passed in 0.76s: window closed prevents JS callbacks, lifecycle concurrency race immunity).
+    - `pytest tests/test_ui_asset_resilience.py -k "test_desktop_container_live_launch" -v` (1 passed, 7 deselected in 2.64s: live PyWebView container launch and clean exit).
+  - **Packaged Executable Smoke Tests (Step 6)**: Filtered run on metadata and process launch (`pytest tests/test_packaged_executable_smoke.py -k "test_packaged_executable_binary_and_pe_metadata or test_packaged_executable_launch_and_cleanup" -v` &rarr; 2 passed, 1 deselected); Authenticode signature status check (`test_packaged_executable_authenticode_signature`) was excluded from this run.
+  - **Obsidian Vault Integrity (Step 8)**: 4 passed in 0.07s (`pytest tests/test_obsidian_vault_integrity.py -q`).
+  - **Dependency Manifests (Step 7, 9, 10, 11)**: 9 passed in 0.98s (`pytest tests/test_dependency_manifests.py -q`), validating exact direct pins, canonicalized 12-package exclusion (with `pywin32-ctypes` identity preservation), and pip dry-run direct-requirement / forwarding-manifest validation.
 
 ---
 

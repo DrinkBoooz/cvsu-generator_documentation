@@ -116,10 +116,11 @@ Validates the executable packaging output:
 Validates that:
 - All four manifests (`requirements-runtime.txt`, `requirements-test.txt`, `requirements-build.txt`, `requirements.txt`) and `executable_test/requirements-build.txt` exist.
 - All production third-party imports in `modules/` and `executable_test/` map via explicit `IMPORT_TO_DIST` to packages declared in `requirements-runtime.txt`.
-- All direct dependencies use exact pins (`==`).
-- Excluded packages (`pypiwin32`, `pywin32`, `pytest-mock`, `pytest-playwright`) are absent.
+- All direct package declarations in runtime, test, and build manifests use exact pins (`==`), while aggregate `requirements.txt` contains `-r` forwarding lines.
+- The complete normalized forbidden distribution set (PEP 503 canonicalized: `pypiwin32`, `pywin32`, `pytest-mock`, `pytest-playwright`, `pandas`, `numpy`, `pillow`, `pyqt5`, `pyqt6`, `pyside2`, `pyside6`, `pywinauto`) is strictly absent from all manifests.
+- Packaging identity precision: asserts that legitimate transitive dependencies like `pywin32-ctypes` are not falsely rejected by `pywin32` exclusion.
 - `python-docx` is strictly a test dependency.
-- `executable_test/requirements-build.txt` forwards to `../requirements-build.txt`.
+- `executable_test/requirements-build.txt` forwards to `../requirements-build.txt`, validated via static path resolution and pip dry-run direct-requirement / forwarding-manifest validation (`pip install --dry-run --no-deps`).
 
 ### 9. Obsidian Documentation Vault Integrity (`test_obsidian_vault_integrity.py`)
 Validates that all documentation notes in `cvsu-generator_documentation`:
