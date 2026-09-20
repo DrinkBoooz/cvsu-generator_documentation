@@ -7,7 +7,7 @@ tags:
   - docx
   - recipes
 status: active
-last_modified: 2026-09-18
+last_modified: 2026-09-20
 source_of_truth:
   - modules/generators/attendance_gen.py
   - modules/parsers/template_inspector.py
@@ -87,11 +87,20 @@ gen.generate(
 )
 ```
 - **Header Field Injection**: Targets info table cells strictly via `recipe.info_binding.bindings[field_name]`.
-- **Matrix Reconstruction**: Rebuilds the attendance grid inside `recipe.matrix_binding.table_index` using discovered column indices (`no_col`, `name_col`, `id_col`) and discovered prototype rows.
+- **Matrix Reconstruction**: Rebuilds the attendance grid inside `recipe.matrix_binding.table_index` using discovered column indices (`no_col`, `name_col`, `id_col`), discovered prototype rows, and explicit structural coordinates:
+  - `week_template_cell_col`, `summary_header0_cell_col`: Exact template prototype cells in row 0.
+  - `date_template_cell_col`, `summary_header1_cell_cols`: Exact template prototype cells in row 1.
+  - `student_date_template_cell_col`, `student_summary_cell_cols`: Exact prototype cells in the prototype student row.
 - **Capacity Policy & Over-Capacity Safety**:
-  - Available date pool width is `DATE_POOL = 2772` pct units.
+  - Non-date column percentage width total: $248 (\text{NO}) + 1277 (\text{NAME}) + 499 (\text{STNUM}) + 212 (\text{LB}) + 208 (\text{LC}) + 133 (\text{R}) = 2577$ pct units ($51.54\%$).
+  - Available date pool width is `DATE_POOL = 5000 - 2577 = 2423` pct units.
   - Date column width is calculated as `DATE_W = max(1, DATE_POOL // n_date_cols)`.
-  - **Failsafe Limit**: If `DATE_W < 25` (representing ~360 dxa width, insufficient for readable two-digit dates), `AttendanceGenerator` raises `TemplateError(f"Schedule requires {n_date_cols} date columns which exceeds maximum template capacity.")`.
+  - **Failsafe Limit**: If `DATE_W < 25` (representing ~360 dxa width, insufficient for readable two-digit dates), `AttendanceGenerator` raises `TemplateError(f"Schedule requires {n_date_cols} date columns which exceeds printable page width capacity.")`.
+  - **Capacity Separation**:
+    - `template_session_capacity`: Discovered template date column capacity (e.g. 4 columns in canonical template).
+    - `required_session_columns`: Requested class meeting sessions ($n\_weeks \times sessions\_per\_week$). If required sessions exceed template capacity, legally expands grid columns provided `DATE_W >= 25`.
+    - `template_student_row_capacity`: Measured student row capacity in template.
+    - `GENERATOR_MIN_STUDENT_ROWS = 40`: Generator rendering floor ensuring minimum 40 rows are output even with small rosters.
 
 ---
 
@@ -163,9 +172,9 @@ return gen.generate(...)
   - Authoritative recipe validation via `AttendanceTemplateInspector` & `RecipeValidator`.
   - Empty date check: If `get_class_dates_for_weekdays` finds 0 valid dates, raises `EmptyDateError`.
 - **Calculations**:
-  - Fixed column widths: `NO_W = 248`, `NAME_W = 1277`, `STNUM_W = 499`, `LB_W = 212`, `LC_W = 208`, `R_W = 133`.
-  - Date pool: `2772 pct`.
-  - Date column width: `DATE_W = 2772 // n_date_cols`. Remainder added to `NAME_W`.
+  - Fixed column widths: `NO_W = 248`, `NAME_W = 1277`, `STNUM_W = 499`, `LB_W = 212`, `LC_W = 208`, `R_W = 133` (Total fixed: `2577 pct`).
+  - Date pool: `DATE_POOL = 5000 - 2577 = 2423 pct`.
+  - Date column width: `DATE_W = 2423 // n_date_cols`. Remainder added to `NAME_W`.
   - Week header width: `WEEK_W = DATE_W * session_count`.
   - Summary column width: `SUM_W = LB_W + LC_W + R_W = 553 pct` (`gridSpan = 3`).
 - **Authoritative template/recipe**:

@@ -7,7 +7,7 @@ tags:
   - discovery
   - recipes
 status: active
-last_modified: 2026-09-18
+last_modified: 2026-09-20
 source_of_truth:
   - modules/parsers/semantic_registry.py
   - modules/models/recipe.py
@@ -23,7 +23,7 @@ source_of_truth:
 
 # Template Discovery Pipeline
 
-The **Template Discovery Pipeline** is the authoritative subsystem responsible for dynamically scanning, validating, and binding Microsoft Word (`.docx`) and Excel (`.xlsx`) document templates. All production document generators—academic CEIT forms, custom generic DOCX, grading sheets (`.xlsx`), and attendance sheets (`.docx`)—are bound authoritatively through validated template recipes, completely eliminating hardcoded cell and table coordinates.
+The **Template Discovery Pipeline** is the authoritative subsystem responsible for dynamically scanning, validating, and binding Microsoft Word (`.docx`) and Excel (`.xlsx`) document templates. All production document generators—academic CEIT forms, custom generic DOCX, grading sheets (`.xlsx`), and attendance sheets (`.docx`)—are bound authoritatively through validated template recipes, completely eliminating hardcoded cell and table coordinates. Attendance is a specialized dynamic template contract under the same authoritative discovery → validation → recipe → generator model, not an architectural exception.
 
 Related notes:
 - [[CvSU Document Generator MOC]]
@@ -48,25 +48,27 @@ flowchart TD
 
     APP["Application / Orchestrator"]
     DATA["ClassInfo / Schedule / Roster / Calendar"]
+    TMPL["Actual Template (.docx / .xlsx)"]
+
     ROUTER["Generator Routing"]
-
     RESOLVER["TemplateRecipeResolver"]
+    DISPATCH{"Profile-Aware Inspector Dispatch<br/>(4-Tier Precedence)"}
 
-    subgraph DISCOVERY["Authoritative Dynamic Template Discovery"]
-        REG["semantic_registry.py"]
+    subgraph INSPECTORS["Authoritative Domain Inspectors (One Selected)"]
         DOCX["DocxTemplateInspector"]
         XLSX["XlsxTemplateInspector"]
         ATTINS["AttendanceTemplateInspector"]
     end
 
-    subgraph RECIPES["Validated Template Contracts"]
+    CAND["Raw Candidate (RawTemplateRecipeCandidate / RawAttendanceTemplateRecipeCandidate)"]
+    VALID["RecipeValidator / Structural Safety Gate"]
+    ERROR["TemplateError / InvalidRecipeError / AmbiguousTemplateError"]
+
+    subgraph RECIPES["Validated Template Contracts (Deep-Frozen)"]
         DOCXRECIPE["Academic / Custom DOCX Recipe"]
         XLSXRECIPE["Grading XLSX Recipe"]
         ATTRECIPE["Attendance Template Recipe"]
     end
-
-    VALID["RecipeValidator / Safety Gate"]
-    ERROR["TemplateError"]
 
     subgraph GENERATORS["Production Generation Layer"]
         GENERIC["ConfigurableDocumentGenerator"]
@@ -82,26 +84,24 @@ flowchart TD
 
     APP --> ROUTER
     APP --> DATA
-
     ROUTER --> RESOLVER
+    TMPL --> RESOLVER
 
-    RESOLVER --> DOCX
-    RESOLVER --> XLSX
-    RESOLVER --> ATTINS
+    RESOLVER --> DISPATCH
+    DISPATCH -->|academic_docx / custom_docx| DOCX
+    DISPATCH -->|grade_sheet_xlsx| XLSX
+    DISPATCH -->|attendance_docx| ATTINS
+    DISPATCH -->|unknown profile / invalid| ERROR
 
-    REG --> DOCX
-    REG --> XLSX
-    REG --> ATTINS
+    DOCX --> CAND
+    XLSX --> CAND
+    ATTINS --> CAND
 
-    DOCX --> VALID
-    XLSX --> VALID
-    ATTINS --> VALID
-
-    VALID -->|Valid| DOCXRECIPE
-    VALID -->|Valid| XLSXRECIPE
-    VALID -->|Valid| ATTRECIPE
-
-    VALID -->|Invalid| ERROR
+    CAND --> VALID
+    VALID -->|Valid Academic/Custom| DOCXRECIPE
+    VALID -->|Valid Grading XLSX| XLSXRECIPE
+    VALID -->|Valid Attendance DOCX| ATTRECIPE
+    VALID -->|Invalid / Ambiguous / Collision| ERROR
 
     DOCXRECIPE --> GENERIC
     DOCXRECIPE --> SYL
@@ -177,17 +177,14 @@ recipe = resolver.resolve(template_path, profile_id)
 ```
 
 ### Profile-Aware Dispatch Hierarchy
-The resolver dispatches inspectors using an authoritative multi-tier resolution order:
-1. **Explicit Exact Registration Override**: `(extension, profile_id) in self._exact_inspectors`
-2. **Explicit Extension Registration Override**: `extension in self._inspectors`
-3. **Canonical Profile-Aware Mapping**:
-   - `(.docx, "academic_docx")` → `DocxTemplateInspector`
-   - `(.docx, "custom_docx")` → `DocxTemplateInspector`
-   - `(.docx, "attendance_docx")` → `AttendanceTemplateInspector`
-   - `(.docx, "attendance")` → `AttendanceTemplateInspector`
-   - `(.xlsx, "grade_sheet_xlsx")` → `XlsxTemplateInspector`
-4. **Default Extension Fallbacks**: `.docx` → `DocxTemplateInspector`, `.xlsx` → `XlsxTemplateInspector`
-5. **Unsupported Extension/Profile**: Raises `TemplateError`
+The resolver dispatches inspectors using an authoritative 4-tier profile-aware precedence order:
+1. **Exact `(extension, profile_id)` Registration Override**: Checked against `self._exact_inspectors`. Allows explicit, intentional overrides for specific profile and extension pairs.
+2. **Canonical Inspector Declared by Profile Registry**: Looked up directly via `PROFILE_REGISTRY[prof].canonical_inspector`:
+   - `(.docx, "academic_docx")` / `(.docx, "custom_docx")` → `DocxTemplateInspector`
+   - `(.docx, "attendance_docx")` / `(.docx, "attendance")` → `AttendanceTemplateInspector`
+   - `(.xlsx, "grade_sheet_xlsx")` / `(.xlsx, "grade_sheet")` → `XlsxTemplateInspector`
+3. **Narrowly Defined Legacy Extension Fallback Only Where Safe**: `self._inspectors[ext]`. Guarded strictly so that an extension-only registration (e.g. `.docx`) cannot silently override canonical attendance dispatch.
+4. **Otherwise Fail Closed (`TemplateError`)**: Any unknown profile ID or unsupported profile/extension combination immediately raises `TemplateError` before any inspection or disk parsing occurs.
 
 ### Cache Identity & Invalidation Semantics
 The resolver caches validated recipes using a 4-tuple identity:
@@ -239,11 +236,18 @@ All validated recipe classes inherit from `ValidatedRecipeBase`:
   - `no_col`, `name_col`, `id_col`: Discovered dynamically, robust against column reordering (Mutation M13).
   - `student_template_row_index`: Discovered prototype student row, robust against decorative guidance banners (Mutation M15, M20).
   - `date_columns_start`: Discovered from week/date headers, robust against inserted columns (Mutation M19).
+  - Structural coordinates: `week_template_cell_col`, `summary_header0_cell_col`, `date_template_cell_col`, `summary_column_indices`, `summary_header1_cell_cols`, `student_date_template_cell_col`, `student_summary_cell_cols`.
   - `template_session_capacity` & `template_student_row_capacity`: Measured dynamically from template geometry.
 - **Capacity Policy & Over-Capacity Safety**:
-  - Available date pool width is `DATE_POOL = 2772` pct units.
-  - Date column width is calculated as `DATE_W = max(1, DATE_POOL // n_date_cols)`.
-  - **Failsafe Limit**: If `DATE_W < 25` (representing ~360 dxa width, insufficient for readable two-digit dates), `AttendanceGenerator` raises `TemplateError(f"Schedule requires {n_date_cols} date columns which exceeds maximum template capacity.")`.
+  - Non-date column percentage width total: $248 (\text{NO}) + 1277 (\text{NAME}) + 499 (\text{STNUM}) + 212 (\text{LB}) + 208 (\text{LC}) + 133 (\text{R}) = 2577$ pct units.
+  - Available date pool width: $\text{DATE\_POOL} = 5000 - 2577 = 2423$ pct units.
+  - Date column width is calculated as $\text{DATE\_W} = \max(1, \text{date\_pool} // \text{n\_date\_cols})$.
+  - **Failsafe Limit**: If $\text{DATE\_W} < 25$ (representing ~360 dxa width, insufficient for readable two-digit dates), `AttendanceGenerator` raises `TemplateError(f"Schedule requires {n_date_cols} date columns which exceeds printable page width capacity.")`.
+  - **Discovered vs Requested vs Rendering Dimensions**:
+    - `template_session_capacity`: The structural date column capacity discovered in the template (e.g. 4 columns in canonical template).
+    - `required_session_columns`: Requested class meeting dates ($n\_weeks \times sessions\_per\_week$). If required dates exceed template capacity, legally expands grid columns provided $\text{DATE\_W} \ge 25$.
+    - `template_student_row_capacity`: Physical student row slots discovered in template.
+    - `GENERATOR_MIN_STUDENT_ROWS = 40`: Generator rendering floor ensuring minimum 40 rows are output even with small rosters.
 
 ---
 
