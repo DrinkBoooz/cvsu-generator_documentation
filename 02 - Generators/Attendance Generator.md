@@ -59,11 +59,13 @@ The template inspector dynamically analyzes the Word document structure:
   - **Column Swap Robustness (Mutation M13)**: Dynamically binds student number and name columns based on cell text matching, eliminating hardcoded column index assumptions.
   - **Dynamic Prototype Student Row (Mutation M15, M20)**: Scans data rows following header rows to locate the empty prototype student row, correctly distinguishing and skipping decorative guidance banners (e.g. non-numeric labels like `"GUIDE"`, `"INSTRUCTIONS"`).
   - **Dynamic Date Columns Start (Mutation M19)**: Identifies the first week/date header column rather than assuming date columns directly follow student ID columns.
+  - **Summary Column Width Discovery**: Discovers actual/validated widths for each semantic summary column (`summary_column_widths`), matching `summary_column_names` order, decoupling logical semantics from layout coordinates.
   - **Capacity Measurement**: Measures `template_session_capacity` and `template_student_row_capacity` directly from table geometry.
 - **Collision Detection**: Detects and flags ambiguous candidate tables or identity collisions where info and matrix bindings target the same table. Emits `RawAttendanceTemplateRecipeCandidate`.
 
 ### 2. Validation & Deep Immutability (`RecipeValidator`)
 - **Strict Profile Conformance**: Validates against `PROFILE_ATTENDANCE_DOCX`. Rejects templates missing required info or matrix regions with fail-closed errors (`E11`–`E18`).
+- **Summary Column Widths Validation**: Validates that `len(summary_column_widths) == len(summary_column_names)` and that every width is a positive integer.
 - **Private Construction Sentinel**: Direct construction of `ValidatedAttendanceTemplateRecipe` outside `RecipeValidator` is blocked by a private construction token.
 - **Recursive Deep Immutability**: All recipe attributes are recursively frozen via `freeze_value()`: dictionaries become `MappingProxyType`, lists become `tuple`, and sets become `frozenset`. In-place mutations raise `AttributeError`.
 
@@ -87,10 +89,10 @@ gen.generate(
 )
 ```
 - **Header Field Injection**: Targets info table cells strictly via `recipe.info_binding.bindings[field_name]`.
-- **Matrix Reconstruction**: Rebuilds the attendance grid inside `recipe.matrix_binding.table_index` using discovered column indices (`no_col`, `name_col`, `id_col`), discovered prototype rows, and explicit structural coordinates:
-  - `week_template_cell_col`, `summary_header0_cell_col`: Exact template prototype cells in row 0.
-  - `date_template_cell_col`, `summary_header1_cell_cols`: Exact template prototype cells in row 1.
-  - `student_date_template_cell_col`, `student_summary_cell_cols`: Exact prototype cells in the prototype student row.
+- **Explicit 3-Region Dynamic Row Assembly**: Dynamic rows (header row 0, header row 1, and student rows) are assembled explicitly by region without structural slices (e.g. `row_cells[date_columns_start:]`):
+  1. **Region 1: Lead / Extra Columns**: Columns `0` through `date_columns_start - 1` mapped to `no_col`, `name_col`, `id_col`, and any extra columns.
+  2. **Region 2: Date / Session Columns**: Cloned from template date prototypes (`week_cell_template`, `date_cell_template`, `att_cell_template`).
+  3. **Region 3: Summary Columns**: Cloned from prototype summary cells (`summary_header0_cell_col`, `summary_header1_cell_cols`, `student_summary_cell_cols`), applying recipe-provided `summary_column_widths`.
 - **Capacity Policy & Over-Capacity Safety**:
   - Non-date column percentage width total: $248 (\text{NO}) + 1277 (\text{NAME}) + 499 (\text{STNUM}) + 212 (\text{LB}) + 208 (\text{LC}) + 133 (\text{R}) = 2577$ pct units ($51.54\%$).
   - Available date pool width is `DATE_POOL = 5000 - 2577 = 2423` pct units.
@@ -100,7 +102,7 @@ gen.generate(
     - `template_session_capacity`: Discovered template date column capacity (e.g. 4 columns in canonical template).
     - `required_session_columns`: Requested class meeting sessions ($n\_weeks \times sessions\_per\_week$). If required sessions exceed template capacity, legally expands grid columns provided `DATE_W >= 25`.
     - `template_student_row_capacity`: Measured student row capacity in template.
-    - `GENERATOR_MIN_STUDENT_ROWS = 40`: Generator rendering floor ensuring minimum 40 rows are output even with small rosters.
+    - `GENERATOR_MIN_STUDENT_ROWS = 40`: Generator rendering floor ensuring minimum 40 rows are output even with small rosters (`target_rows = max(template_student_row_capacity, GENERATOR_MIN_STUDENT_ROWS, len(students))`).
 
 ---
 

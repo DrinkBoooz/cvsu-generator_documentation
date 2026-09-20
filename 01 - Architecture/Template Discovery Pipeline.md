@@ -237,7 +237,9 @@ All validated recipe classes inherit from `ValidatedRecipeBase`:
   - `student_template_row_index`: Discovered prototype student row, robust against decorative guidance banners (Mutation M15, M20).
   - `date_columns_start`: Discovered from week/date headers, robust against inserted columns (Mutation M19).
   - Structural coordinates: `week_template_cell_col`, `summary_header0_cell_col`, `date_template_cell_col`, `summary_column_indices`, `summary_header1_cell_cols`, `student_date_template_cell_col`, `student_summary_cell_cols`.
+  - `summary_column_widths`: Discovered and validated column widths for each semantic summary column, eliminating generator-side layout heuristics.
   - `template_session_capacity` & `template_student_row_capacity`: Measured dynamically from template geometry.
+- **Explicit 3-Region Dynamic Row Construction**: Dynamic rows (header 0, header 1, student rows) are constructed explicitly by region (lead/extra columns, date/session columns, and summary columns) rather than relying on positional structural slices such as `[date_columns_start:]`.
 - **Capacity Policy & Over-Capacity Safety**:
   - Non-date column percentage width total: $248 (\text{NO}) + 1277 (\text{NAME}) + 499 (\text{STNUM}) + 212 (\text{LB}) + 208 (\text{LC}) + 133 (\text{R}) = 2577$ pct units.
   - Available date pool width: $\text{DATE\_POOL} = 5000 - 2577 = 2423$ pct units.
@@ -247,7 +249,7 @@ All validated recipe classes inherit from `ValidatedRecipeBase`:
     - `template_session_capacity`: The structural date column capacity discovered in the template (e.g. 4 columns in canonical template).
     - `required_session_columns`: Requested class meeting dates ($n\_weeks \times sessions\_per\_week$). If required dates exceed template capacity, legally expands grid columns provided $\text{DATE\_W} \ge 25$.
     - `template_student_row_capacity`: Physical student row slots discovered in template.
-    - `GENERATOR_MIN_STUDENT_ROWS = 40`: Generator rendering floor ensuring minimum 40 rows are output even with small rosters.
+    - `GENERATOR_MIN_STUDENT_ROWS = 40`: Generator rendering floor ensuring minimum 40 rows are output even with small rosters (`target_rows = max(template_student_row_capacity, GENERATOR_MIN_STUDENT_ROWS, len(students))`).
 
 ---
 
@@ -258,7 +260,7 @@ All validated recipe classes inherit from `ValidatedRecipeBase`:
 2. **Serialization Isolation**:
    `recipe.to_dict()` strictly omits `_construction_token`. `validate_dict()` rejects any externally supplied `_construction_token` with `InvalidRecipeError`.
 3. **AST Static Analysis (`tests/test_ast_rules.py`)**:
-   Enforces that no production generator or service directly calls `ValidatedTemplateRecipe(...)` or `ValidatedAttendanceTemplateRecipe(...)`, uses hardcoded coordinates (`ws['C1']`, `tables[0]`, `tables[1]`), or instantiates generators without a validated recipe.
+   Enforces that no production generator or service directly calls `ValidatedTemplateRecipe(...)` or `ValidatedAttendanceTemplateRecipe(...)`, uses hardcoded coordinates (`ws['C1']`, `tables[0]`, `tables[1]`), instantiates generators without a validated recipe, or uses unexplained positional template assumptions (including negative indexing like `[-1]`, hardcoded prototype rows like `rows[2]`, or positive structural slicing like `[date_columns_start:]` on cell collections).
 
 ---
 
