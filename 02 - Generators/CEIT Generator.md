@@ -6,7 +6,7 @@ tags:
   - ceit
   - docx
 status: active
-last_modified: 2026-09-15
+last_modified: 2026-09-21
 source_of_truth:
   - modules/generators/ceit_gen.py
   - modules/services/generator_factory.py
@@ -94,7 +94,7 @@ classDiagram
   - `fill_table` reads `recipe.roster_binding.table_index` and `first_data_row_index`.
   - Removes pre-existing placeholder rows from `first_data_row_index` onward.
   - Clones `template_row` per student, empties all run text `<w:t>`, and delegates to `_fill_student_row`.
-  - Name font scaling threshold: Names exceeding 32 characters trigger `set_cell_text(..., shrink_threshold=32, shrink_sz="18")` (reducing to 9pt).
+  - Name font auto-scaling ladder (`is_student_name=True` via `get_student_name_font_sz`): For native academic forms (`profile_id != "custom_docx"`), automatically reduces font size based on character count: $\le 30$ chars -> 8pt (`sz="16"`, template default), $31–35$ chars -> 7pt (`sz="14"`), $> 35$ chars -> 6pt (`sz="12"`). For `custom_docx`, preserves custom template base font and applies `shrink_threshold=32, shrink_sz="18"`.
 
 ---
 
@@ -128,13 +128,13 @@ Each generator target was audited against the comprehensive 23-attribute checkli
   - `fill_table` asserts `rb.table_index < len(tables)` and `len(rows) > rb.first_data_row_index` (raises `TemplateError` on mismatch).
 - **Normalization**:
   - `course_section` is sanitized for file paths via `sanitize_filename` (replacing slashes and special characters).
-  - Student names > 32 characters are scaled to 9pt (`sz="18"`).
+  - Student names are dynamically scaled via `get_student_name_font_sz` (8pt / 7pt / 6pt) to prevent row wrapping.
 - **Processing/transformation logic**:
   1. `load_docx(template_path)` loads template archive and extracts XML DOM (`zin, root, body`).
   2. `fill_header(body, info)` binds `instructor`, `course_section`, `schedule_code`, `subject`, `time_days_room`, `semester_ay`, and empty `date` to target coordinates via `recipe.header_bindings`.
   3. `fill_table(body, info)` removes default rows, deep-copies the template row for each student, and invokes `_fill_student_row`.
   4. `save_docx(zin, root, output_path)` serializes modified XML into the destination document.
-- **Calculations**: Row counter `idx + 1`, string length measurement for font auto-scaling.
+- **Calculations**: Row counter `idx + 1`, dynamic font scaling ladder (`is_student_name=True`: 8pt/7pt/6pt).
 - **Authoritative template/recipe**:
   - Template: `templates/template_syllabus.docx`
   - Profile: `syllabus` (mapped to `PROFILE_ACADEMIC_DOCX`)
@@ -174,7 +174,7 @@ Each generator target was audited against the comprehensive 23-attribute checkli
   - Recipe validated against `PROFILE_ACADEMIC_DOCX` (`profile_id="exam_returns"`).
 - **Normalization**: Same as Target 1.
 - **Processing/transformation logic**: Same recipe-driven template method pipeline as `DocumentGenerator`. Stores `self._period = "MIDTERM"`.
-- **Calculations**: Auto-scaling for long student names (`shrink_threshold=32`, `shrink_sz="18"`).
+- **Calculations**: Auto-scaling for long student names (`is_student_name=True`: 8pt/7pt/6pt).
 - **Authoritative template/recipe**:
   - Template: `templates/template_exam_midterm.docx`
   - Profile: `exam_returns` (`PROFILE_ACADEMIC_DOCX`)
@@ -212,7 +212,7 @@ Each generator target was audited against the comprehensive 23-attribute checkli
 - **Validation**: Same as Target 2.
 - **Normalization**: Same as Target 1.
 - **Processing/transformation logic**: Same execution pipeline as `DocumentGenerator`, instantiated with `period="FINAL"`.
-- **Calculations**: Auto-scaling for long student names.
+- **Calculations**: Auto-scaling for long student names (`is_student_name=True`: 8pt/7pt/6pt).
 - **Authoritative template/recipe**:
   - Template: `templates/template_exam_finals.docx`
   - Profile: `exam_returns` (`PROFILE_ACADEMIC_DOCX`)
@@ -248,7 +248,7 @@ Each generator target was audited against the comprehensive 23-attribute checkli
 - **Processing/transformation logic**:
   - **Special Header Override**: `TOSGenerator.fill_header(body, info)` intercepts header rendering and creates a temporary `ClassInfo` where `semester_ay = f"{info.semester_ay} ({self._period})"`. This cleanly appends `" (Midterm)"` to the academic semester string.
   - Table generation delegates to base `DocumentGenerator.fill_table`.
-- **Calculations**: Font auto-scaling for long student names.
+- **Calculations**: Font auto-scaling for long student names (`is_student_name=True`: 8pt/7pt/6pt).
 - **Authoritative template/recipe**:
   - Template: `templates/template_tos_midterm.docx`
   - Profile: `tos` (`PROFILE_ACADEMIC_DOCX`)
@@ -284,7 +284,7 @@ Each generator target was audited against the comprehensive 23-attribute checkli
 - **Validation**: Same as Target 4.
 - **Normalization**: Same as Target 1.
 - **Processing/transformation logic**: Subclass override appends `" (Finals)"` to `semester_ay` before delegating to `super().fill_header()`.
-- **Calculations**: Font auto-scaling for long student names.
+- **Calculations**: Font auto-scaling for long student names (`is_student_name=True`: 8pt/7pt/6pt).
 - **Authoritative template/recipe**:
   - Template: `templates/template_tos_finals.docx`
   - Profile: `tos` (`PROFILE_ACADEMIC_DOCX`)
@@ -318,7 +318,7 @@ Each generator target was audited against the comprehensive 23-attribute checkli
 - **Validation**: Constructor requires `ValidatedTemplateRecipe`; template verified at `templates/Midterm-Grade-Discussion_LATEST.docx`.
 - **Normalization**: Same as Target 1.
 - **Processing/transformation logic**: Standard `DocumentGenerator` template method execution driven by recipe. Stores `self._period = "Midterm"`.
-- **Calculations**: Font auto-scaling for names > 32 chars.
+- **Calculations**: Font auto-scaling for long names (`is_student_name=True`: 8pt/7pt/6pt).
 - **Authoritative template/recipe**:
   - Template: `templates/Midterm-Grade-Discussion_LATEST.docx`
   - Profile: `grade_discussion` (`PROFILE_ACADEMIC_DOCX`)
@@ -356,7 +356,7 @@ Each generator target was audited against the comprehensive 23-attribute checkli
 - **Validation**: Constructor requires `ValidatedTemplateRecipe`; template verified at `templates/Final-Grade-Discussion_LATEST.docx`.
 - **Normalization**: Same as Target 1.
 - **Processing/transformation logic**: Standard `DocumentGenerator` template method execution driven by recipe. Stores `self._period = "Finals"`.
-- **Calculations**: Font auto-scaling for names > 32 chars.
+- **Calculations**: Font auto-scaling for long names (`is_student_name=True`: 8pt/7pt/6pt).
 - **Authoritative template/recipe**:
   - Template: `templates/Final-Grade-Discussion_LATEST.docx`
   - Profile: `grade_discussion` (`PROFILE_ACADEMIC_DOCX`)

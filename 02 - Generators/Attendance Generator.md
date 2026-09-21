@@ -7,7 +7,7 @@ tags:
   - docx
   - recipes
 status: active
-last_modified: 2026-09-20
+last_modified: 2026-09-21
 source_of_truth:
   - modules/generators/attendance_gen.py
   - modules/parsers/template_inspector.py
@@ -91,7 +91,7 @@ gen.generate(
     end_bound=end_bound,
 )
 ```
-- **Header Field Injection**: Targets info table cells strictly via `recipe.info_binding.bindings[field_name]`.
+- **Header Field Injection**: Targets info table cells strictly via `recipe.info_binding.bindings[field_name]`. Long fields (`course_code_title`, `class_schedule`, `instructor`) auto-shrink to 8pt (`sz="16"`) when exceeding 32 characters to prevent header height expansion.
 - **Explicit 3-Region Dynamic Row Assembly**: Dynamic rows (header row 0, header row 1, and student rows) are assembled explicitly by region without structural slices (e.g. `row_cells[date_columns_start:]`):
   1. **Region 1: Lead / Extra Columns**: Columns `0` through `date_columns_start - 1` mapped to `no_col`, `name_col`, `id_col`, and any extra columns.
   2. **Region 2: Date / Session Columns**: Cloned from template date prototypes (`week_cell_template`, `date_cell_template`, `att_cell_template`).
