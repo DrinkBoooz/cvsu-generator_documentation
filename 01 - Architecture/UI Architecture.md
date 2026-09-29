@@ -6,12 +6,13 @@ tags:
   - ui
   - accessibility
 status: active
-last_modified: 2026-09-17
+last_modified: 2026-09-29
 source_of_truth:
   - executable_test/ui.html
   - executable_test/css/base.css
   - executable_test/css/components.css
   - executable_test/css/drawers.css
+  - executable_test/css/modals.css
   - executable_test/js/app.js
   - executable_test/js/state.js
   - executable_test/js/theme.js
@@ -193,3 +194,74 @@ Non-modal notification system replacing blocking dialog alerts:
 - **Full Keyboard Navigation**: All buttons, inputs, dropzones, and drawer toggles have clear visible focus rings (`:focus-visible`).
 - **Semantic Landmark Regions**: Header (`<header>`), navigation (`<nav>`), main (`<main id="mainContent">`), drawers (`<aside>`), and footer dock (`<footer>`).
 - **Live Telemetry Regions**: Progress bar and generation status text are wired with `aria-live="polite"` to announce real-time background status to screen readers.
+
+---
+
+## 🌗 Theme Transition Subsystem (`js/theme.js` + `css/modals.css`)
+
+The dark/light theme toggle uses the **CSS View Transitions API** (Chrome/Chromium) to produce a circular iris reveal originating from the click coordinates. The architecture enforces strict separation of responsibilities.
+
+### Architecture (commit 193–194)
+
+| Responsibility | Owner |
+|---|---|
+| Click-origin geometry (`x`, `y`, `endRadius`) | `theme.js` |
+| CSS custom properties (`--vt-x`, `--vt-y`, `--vt-radius`, `--vt-duration`) | `theme.js` injects onto `:root` |
+| Iris `clip-path` animation (`appleThemeIrisReveal`) | `modals.css` **sole owner** |
+| Glass edge specular glow (`--vt-edge-specular`) | `modals.css` custom property |
+| Annular glass wavefront (live backdrop-filter ring) | DOM overlay in `theme.js` |
+| Animation duration constant (`THEME_TRANSITION_DURATION_MS = 450`) | `theme.js` shared single source |
+
+### Why JS does NOT animate `::view-transition-new(root)` via WAAPI
+
+The Web Animations API (`element.animate({ clipPath: ... }, { pseudoElement })`) was initially used but caused **choppy competing animations** — CSS and JS simultaneously owned the `clip-path` property on the same pseudo-element. Commit 193 removed the WAAPI call entirely. CSS is the sole `clip-path` animation owner.
+
+### View Transition Pseudo-element Stack
+
+```
+::view-transition           (host, z-index: INT_MAX in Chromium)
+  ├─ ::view-transition-image-pair(root)
+  │    ├─ ::view-transition-old(root)   z-index: 1  (old page snapshot, static)
+  │    └─ ::view-transition-new(root)   z-index: 2  (new page, iris clip-path grows)
+  │         filter: var(--vt-edge-specular)           ← hairline glass ring
+  │         animation: appleThemeIrisReveal 450ms     ← CSS-owned iris expand
+  │
+  └─ .theme-glass-wavefront              z-index: 2147483646  (DOM fixed, <html>)
+       backdrop-filter: blur(20px) saturate(1.4)      ← live glass material
+       mask-image: radial-gradient(annular)            ← ring-only visible
+```
+
+### Wavefront Architecture Decision (Named VT Layer Rejected)
+
+A `view-transition-name` approach was investigated for the annular wavefront ring. It was rejected for two reasons:
+
+1. **Frozen pixels**: VT named layers capture element pixels as a snapshot. `backdrop-filter` on a snapshot blurs the frozen pixels, not the live page beneath the iris — destroying the glass effect.
+2. **Zero-size snapshot**: The wavefront starts at `scale(0)` at the click origin. VT pseudo-elements are sized to their snapshotted element bounding box; a scale-0 element produces a zero-size snapshot that cannot grow to fill the screen.
+
+The wavefront therefore remains a `position: fixed` DOM element appended to `document.documentElement` (not `<body>`), placing it in the same stacking root as the VT host pseudo-element.
+
+### Apple HIG Glass Material Spec
+
+From `liquid-glass.md § Cross-platform translation`:
+
+| Property | Value |
+|---|---|
+| Backdrop blur | `20px` (Regular variant: 20–40px) |
+| Saturation boost | `1.4×` (HIG: 1.2–1.5×) |
+| Fill | Thin translucent white ring (15–60% in ring band, zero center/outside) |
+| Color | Monochrome specular — no inherent color (HIG: glass has no inherent color) |
+| Dark theme specular | `drop-shadow(0 0 1px rgba(255,255,255,0.80)) drop-shadow(0 0 6px rgba(255,255,255,0.20))` |
+| Light theme specular | `drop-shadow(0 0 1px rgba(0,0,0,0.18)) drop-shadow(0 0 6px rgba(4,120,87,0.14))` |
+
+### Accessibility — `prefers-reduced-motion`
+
+Per `accessibility.md § Cognitive` and `motion.md § Best practices`:
+- The iris `clip-path` grow animation is dropped entirely.
+- The glass wavefront is hidden (`display: none`).
+- A simple 200ms opacity crossfade (`vt-fade-out` / `vt-fade-in`) replaces the iris.
+- JS skips wavefront creation (`window.matchMedia('(prefers-reduced-motion: reduce)').matches`).
+
+### Zero Runaway Transitions
+
+All DOM CSS transitions are suppressed during the VT via `.theme-transitioning * { transition: none !important }`, preventing the cascade storms (700+ `transitionstart` events) that occurred before commit 190.
+
