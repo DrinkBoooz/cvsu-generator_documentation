@@ -6,10 +6,11 @@ tags:
   - pytest
   - playwright
 status: active
-last_modified: 2026-10-01
+last_modified: 2026-10-02
 source_of_truth:
   - tests/
   - tests/test_accessibility_settings.py
+  - tests/test_packaged_executable_theme_diag.py
   - tests/test_ui_asset_resilience.py
   - tests/test_diagnostic_probe.py
   - tests/test_dependency_manifests.py
@@ -138,11 +139,19 @@ Validates the compiled `CvSU Gen.exe` runtime host environment:
 - Diagnoses host accessibility integration (`prefers-reduced-motion: reduce` synchronized with Windows `SPI_GETCLIENTAREAANIMATION`).
 
 ### 11. Accessibility Settings & Precedence Testing (`tests/test_accessibility_settings.py`)
-Validates the accessibility settings architecture across UI markup, CSS tokens, and JavaScript runtime resolution:
-- **Markup & ARIA Semantics**: Asserts `#cfgTabAccessibility`, `#cfgPaneAccessibility`, `#accMotionSelect`, `#accTransparencySelect`, and associated `<label for="...">` and `.setting-desc` descriptions exist with correct accessible names and options.
+Validates the accessibility settings architecture across UI markup, CSS tokens, JavaScript runtime resolution, and headless Playwright browser interactions:
+- **Markup & ARIA Semantics**: Asserts `#cfgTabAccessibility`, `#cfgPaneAccessibility`, `#accMotionSelect`, `#accTransparencySelect`, and associated `<label for="...">` and `.setting-desc` descriptions exist with correct accessible names, options, and captions.
 - **CSS Surface Overrides**: Asserts that `modals.css` defines `[data-acc-transparency="reduce"]` with `backdrop-filter: none !important` and solid opaque background tokens on all primary glass containers.
 - **Precedence Resolution Matrix**: Verifies all combinations of system preferences (`no-preference` vs `reduce`) and app settings (`system`, `reduce`, `full`/`glass`) using simulated DOM and localStorage environments.
 - **Settings Controller Integration**: Confirms `switchConfigTab()` supports `"Accessibility"` and `resetConfigSettings()` restores accessibility selections to `"system"`.
+- **E2E Full Motion Override**: Verifies that under emulated system `reduced_motion="reduce"`, selecting `Full Motion` successfully executes the 450ms WAAPI circular reveal on `::view-transition-new(root)`.
+- **E2E System Motion Suppression**: Verifies that under emulated system `reduced_motion="reduce"`, `System Default` suppresses the iris animation and switches themes instantly without animation errors.
+- **E2E Bidirectional Transitions**: Confirms both Dark → Light and Light → Dark transitions execute cleanly with full circular reveal geometry.
+- **E2E Reduced Transparency Surfaces**: Inspects computed styles of `.top-header`, `.bottom-action-content`, and `.glass-card` under `transparency="reduce"` to confirm `backdrop-filter: none` and non-transparent background colors.
+- **Settings Persistence & Reset**: Confirms selections persist across dialog close/reopen and page reload, and `resetConfigSettings()` restores defaults immediately.
+- **Dynamic Media-Query Listener**: Emulates runtime changes from `no-preference` to `reduce` while the app is running to confirm `data-acc-motion` updates without page refresh.
+- **Multi-Viewport Responsive Verification**: Parametrized Playwright tests across `880×640`, `1120×780`, `768×600`, and `375×667` verify zero horizontal overflow (`scrollWidth <= clientWidth`) and ensure select controls remain fully visible and usable.
+- **Packaged Diagnostic Telemetry**: `tests/test_packaged_executable_theme_diag.py` asserts top-level diagnostic telemetry distinguishes `storedMotionPreference`, `effectiveMotionPreference`, `storedTransparencyPreference`, `effectiveTransparencyPreference`, `systemReducedMotion`, and `systemReducedTransparency`.
 
 
 

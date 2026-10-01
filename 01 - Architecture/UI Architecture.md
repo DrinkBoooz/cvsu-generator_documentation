@@ -6,7 +6,7 @@ tags:
   - ui
   - accessibility
 status: active
-last_modified: 2026-10-01
+last_modified: 2026-10-02
 source_of_truth:
   - executable_test/ui.html
   - executable_test/css/base.css
@@ -367,9 +367,9 @@ Commits 194 and 195 explored a `.theme-glass-wavefront` DOM overlay. This approa
 
 ---
 
-## ♿ Accessibility Settings Architecture & Preference Precedence (Commit 201)
+## ♿ Accessibility Settings Architecture & Preference Precedence (Commits 201 & 202)
 
-In Commit `201`, the application introduced an architectural **Accessibility Settings** section within the Configuration dialog (`#cfgTabAccessibility` / `#cfgPaneAccessibility`), grounded in Apple HIG and WCAG 2.1 AA principles.
+In Commits `201` and `202`, the application introduced and polished an architectural **Accessibility Settings** section within the Configuration dialog (`#cfgTabAccessibility` / `#cfgPaneAccessibility`), grounded in Apple HIG, Windows UX guidelines, and WCAG 2.1 AA principles.
 
 ### 1. Capability Evaluation & Separation of Concerns
 Prior to implementation, accessibility capabilities were evaluated to separate **user-configurable preferences** from **mandatory baseline behaviors**:
@@ -383,11 +383,32 @@ Prior to implementation, accessibility capabilities were evaluated to separate *
 | **Keyboard & Focus** | Tab index, visible focus rings, escape listeners, modal trap | **No (Mandatory baseline)** | Core accessibility requirement that must always remain active, never disabled behind a setting. |
 | **Non-Color Cues** | Status badges, icons, text labels, step connectors | **No (Mandatory baseline)** | Information must never depend on color alone; guaranteed at the component level. |
 
-### 2. Precedence Matrix: System vs. App Configuration
-System accessibility settings remain **authoritative by default** (`system`), while providing deliberate, user-controlled override modes:
+### 2. Terminology & Conceptual Clarity (Commit 202 Polish)
+To ensure terminology adheres to neutral accessibility standards rather than proprietary marketing metaphors:
+- **Motion Options**:
+  - `system`: **Follow System (Default)** — Strictly tracks the host OS preference.
+  - `reduce`: **Reduced Motion** — Suppresses large-scale viewport transitions and iris reveals.
+  - `full`: **Full Motion (Override system preference)** — Explicit user override that re-enables full View Transition circular iris animations even when the OS requests reduced motion.
+- **Transparency Options**:
+  - `system`: **Follow System (Default)** — Aligns with host OS transparency settings.
+  - `reduce`: **Reduced Transparency (Solid opaque)** — Disables all `backdrop-filter` blurring and enforces solid `#1e293b` (dark) / `#f8fafc` (light) backgrounds.
+  - `glass`: **Standard Transparency (Frosted glass)** — Restores CvSU Gen's standard Apple HIG frosted glass system. The storage key remains `glass` for backward compatibility, while the UI presents a neutral, unambiguous label.
+
+### 3. Windows Animation Effects & WebView2 Interaction
+In the Windows desktop environment:
+- The OS toggle at **Settings → Accessibility → Visual effects → Animation effects** (backed by Windows API `SystemParametersInfo(SPI_GETCLIENTAREAANIMATION)`) controls global application animations.
+- When Animation effects are **OFF**, Edge Chromium / WebView2 automatically reports `window.matchMedia('(prefers-reduced-motion: reduce)').matches === true`.
+- In Commit 200, packaged runtime diagnosis confirmed that `CvSU Gen.exe` correctly detected this reduced motion preference, leading `theme.js` to bypass the WAAPI circular iris.
+- Under Commit 201/202, users can choose **Full Motion** in Settings to opt out of the system suppression exclusively within CvSU Gen.
+
+> [!WARNING]
+> **Full Motion Override Guidance**: Full Motion is an explicit opt-in override designed for users who want rich transitions on desktop setups where Windows animations are globally turned off for performance reasons. It is **NOT** universally recommended, as reduced motion exists primarily to protect users with vestibular conditions from dizziness and motion sensitivity.
+
+### 4. Precedence Matrix: System vs. App Configuration
+System accessibility settings remain **authoritative by default** (`system`), while providing deterministic override modes:
 
 #### Motion Preference Precedence:
-| App Motion Setting | System `prefers-reduced-motion` | Effective Preference | `data-acc-motion` DOM attribute | View Transition Iris Behavior |
+| App Motion Setting (`cvsu_acc_motion`) | System `prefers-reduced-motion` | Effective Preference | `data-acc-motion` DOM attribute | View Transition Iris Behavior |
 | :--- | :--- | :--- | :--- | :--- |
 | `system` (Default) | `no-preference` (Off) | `no-preference` | `system` | Animated 450ms WAAPI circular iris |
 | `system` (Default) | `reduce` (On) | `reduce` | `reduce` | **Instant theme switch (Motion suppressed)** |
@@ -397,22 +418,24 @@ System accessibility settings remain **authoritative by default** (`system`), wh
 | `full` | `reduce` (On) | `no-preference` | `no-preference` | **Animated 450ms WAAPI circular iris (User override)** |
 
 #### Transparency Preference Precedence:
-| App Transparency Setting | System `prefers-reduced-transparency` | Effective Preference | `data-acc-transparency` DOM attribute | Surface Treatment |
+| App Transparency Setting (`cvsu_acc_transparency`) | System `prefers-reduced-transparency` | Effective Preference | `data-acc-transparency` DOM attribute | Surface Treatment |
 | :--- | :--- | :--- | :--- | :--- |
-| `system` (Default) | `no-preference` | `no-preference` | `system` | Apple HIG Liquid Glass (`backdrop-filter: blur(20px)`) |
+| `system` (Default) | `no-preference` | `no-preference` | `system` | Standard Frosted Glass (`backdrop-filter: blur(20px)`) |
 | `system` (Default) | `reduce` | `reduce` | `reduce` | Solid opaque surfaces (`backdrop-filter: none !important`) |
 | `reduce` | Any | `reduce` | `reduce` | **Solid opaque surfaces (`backdrop-filter: none !important`)** |
-| `glass` | Any | `no-preference` | `glass` | Apple HIG Liquid Glass (`backdrop-filter: blur(20px)`) |
+| `glass` | Any | `no-preference` | `glass` | Standard Frosted Glass (`backdrop-filter: blur(20px)`) |
 
-### 3. Persistence & Runtime Storage Architecture
-- **Storage Mechanism**: Backed by browser `localStorage`, consistent with existing application settings:
+### 5. Persistence, Runtime Lifecycle & Dynamic Listeners
+- **Storage Mechanism**: Backed by browser `localStorage`:
   - `cvsu_acc_motion`: `"system" | "reduce" | "full"`
   - `cvsu_acc_transparency`: `"system" | "reduce" | "glass"`
-- **Bootstrap Lifecycle**: `applyAccessibilityPreferences()` runs synchronously in `executable_test/js/theme.js` at script parse time (prior to DOM rendering) and binds dynamic listeners to `window.matchMedia` change events.
-- **DOM Stamp**: Sets `data-acc-motion` and `data-acc-transparency` on `document.documentElement`, allowing CSS rules in `modals.css` and `components.css` to react immediately without page reload.
-- **Reset Integration**: `resetConfigSettings()` restores both keys to `"system"`, synchronizing UI dropdowns and clearing DOM overrides.
+- **Bootstrap Lifecycle**: `applyAccessibilityPreferences()` runs synchronously in `executable_test/js/theme.js` at script load before first paint.
+- **Dynamic Media-Query Listeners**: `theme.js` binds `change` listeners to `window.matchMedia('(prefers-reduced-motion: reduce)')` and `window.matchMedia('(prefers-reduced-transparency: reduce)')`. If the host OS setting changes while CvSU Gen is open, effective preferences update reactively without page reload.
+- **DOM Attribute Binding**: Applies `data-acc-motion` and `data-acc-transparency` to `document.documentElement`, driving CSS surface overrides and focus styles immediately.
+- **In-Flight Transition Behavior**: Changing an accessibility setting during an active 450ms View Transition animation intentionally allows the in-flight animation to complete cleanly. Future transitions immediately execute according to the updated preference.
+- **Reset Configuration**: Invoking `resetConfigSettings()` restores both preferences to `"system"`, resetting DOM attributes and UI dropdowns immediately.
 
-### 4. Theme-Transition Integration
+### 6. Theme-Transition Integration
 In `theme.js`, the View Transition theme toggle checks `getEffectiveMotionPreference()` before starting the transition:
 ```javascript
 if (getEffectiveMotionPreference() === "reduce") {
