@@ -92,7 +92,44 @@ This guarantees that the browser engine applies hiding rules during initial layo
 - **`css/components.css`**: Decoupled UI components including the workflow stepper bar, floating action dock, status badges, chips, and toast containers.
 - **`css/drawers.css`**: Dedicated off-canvas side drawer styles (`#helpDrawer`, `#logDrawer`) with localized fallback visibility safeguards.
 - **`css/modals.css`**: Dialog overlays and modal windows for settings and column mapping.
-- **Dynamic Theming (`js/theme.js`)**: Smooth 300ms CSS variable transitions between Dark and Light modes, querying `prefers-color-scheme` and storing preferences in `localStorage`.
+- **Dynamic Theming (`js/theme.js`)**: Smooth CSS variable transitions between Dark and Light modes with View Transition circular reveals, querying `prefers-color-scheme` and storing preferences in `localStorage`.
+
+---
+
+## 🌓 View Transition Theming & Packaged Runtime Architecture
+
+The theme management subsystem (`executable_test/js/theme.js`) provides dynamic switching between Dark Mode and Light Mode with a circular View Transition reveal and native accessibility awareness:
+
+```text
+document.startViewTransition()
+        ↓
+await transition.ready
+        ↓
+document.documentElement.animate(...) [WAAPI]
+        ↓
+target: ::view-transition-new(root)
+clipPath: circle(0px at x y) → circle(endRadius at x y)
+```
+
+### 1. View Transition Engine Architecture
+- **WAAPI Iris Ownership**: The Web Animations API (WAAPI) is the sole owner of the circular iris reveal geometry (`THEME_TRANSITION_DURATION_MS = 450ms`, `cubic-bezier(0.2, 0, 0, 1)`).
+- **CSS Specular Styling**: `executable_test/css/modals.css` applies a restrained specular edge filter to `::view-transition-new(root)` without competing keyframe animations.
+- **Timing Synchronization**: WAAPI execution strictly awaits `transition.ready` before invoking `.animate()`. Animating before `.ready` would target an unmounted pseudo-element.
+
+### 2. Packaged Desktop Runtime Environment (`CvSU Gen.exe`)
+In the packaged Windows desktop binary:
+- **Container**: PyWebView `6.2.1` using WinForms + Microsoft Edge WebView2 Evergreen Runtime.
+- **Active Engine**: Evergreen WebView2 Runtime (`154.0.4258.37`) running in EdgeChromium mode.
+- **API Capabilities**: Natively supports `document.startViewTransition`, `Element.prototype.animate`, and `::view-transition-new(root)` pseudo-element WAAPI animations. All promises (`updateCallbackDone`, `ready`, `finished`) resolve with 0 errors.
+
+### 3. Forensic Runtime Diagnosis & Accessibility Interaction (Commit 200)
+When running the compiled `CvSU Gen.exe`, the application toggles theme successfully but may display no iris animation on certain host machines:
+- **Root Cause**: `theme.js` queries `window.matchMedia("(prefers-reduced-motion: reduce)").matches` to honor user accessibility preferences.
+- **OS Synchronization**: Edge WebView2 synchronizes `prefers-reduced-motion` with the Windows host setting `SPI_GETCLIENTAREAANIMATION` (Windows Settings > Accessibility > Visual Effects > **Animation effects**).
+- **Behavior Parity**:
+  - When Windows **Animation effects** is **Off**, `prefers-reduced-motion: reduce` evaluates to `true`. Per accessibility design (Apple HIG & WCAG), `theme.js` immediately applies the theme without large-scale spatial motion.
+  - In Playwright browser tests, the browser context defaults to `no-preference` (`false`), allowing the 450ms iris to animate.
+  - When reduced motion is bypassed or Windows Animation effects is enabled, `CvSU Gen.exe` plays the full circular iris animation with zero exceptions.
 
 ---
 

@@ -128,3 +128,12 @@ Validates that all documentation notes in `cvsu-generator_documentation`:
 - Contain valid YAML frontmatter (`title`, `status`, `last_modified`, `source_of_truth`).
 - Have valid wikilinks with zero broken targets.
 
+### 10. Packaged Executable Theme Diagnostics (`tests/test_packaged_executable_theme_diag.py`)
+Validates the compiled `CvSU Gen.exe` runtime host environment:
+- Spawns the real frozen PyInstaller binary with `CVSU_THEME_DIAGNOSTIC=1` and `CVSU_DIAGNOSTIC_EXIT=1`.
+- Verifies native `edgechromium` WinForms renderer and Evergreen WebView2 Runtime (`>= 110`, active `154.0.4258.37`).
+- Validates full promise resolution lifecycle (`updateCallbackDone`, `ready`, `finished`).
+- Verifies WAAPI execution on `::view-transition-new(root)` pseudo-element (`playState: "running"`).
+- Diagnoses host accessibility integration (`prefers-reduced-motion: reduce` synchronized with Windows `SPI_GETCLIENTAREAANIMATION`).
+
+
