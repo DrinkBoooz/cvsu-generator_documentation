@@ -365,12 +365,75 @@ Commits 194 and 195 explored a `.theme-glass-wavefront` DOM overlay. This approa
 **Increased Contrast (`prefers-contrast: more`)**
 - `modals.css` increases edge contrast, removes soft glow, strengthens border visibility.
 
+---
+
+## ♿ Accessibility Settings Architecture & Preference Precedence (Commit 201)
+
+In Commit `201`, the application introduced an architectural **Accessibility Settings** section within the Configuration dialog (`#cfgTabAccessibility` / `#cfgPaneAccessibility`), grounded in Apple HIG and WCAG 2.1 AA principles.
+
+### 1. Capability Evaluation & Separation of Concerns
+Prior to implementation, accessibility capabilities were evaluated to separate **user-configurable preferences** from **mandatory baseline behaviors**:
+
+| Capability | Evaluated Scope | Configurable in Settings? | Architectural Justification |
+| :--- | :--- | :--- | :--- |
+| **Interface Motion** | WAAPI circular iris, icon `spin-morph`, spinner transitions | **Yes** (`system`, `reduce`, `full`) | Provides explicit control over vestibular-triggering large-scale motion while allowing an opt-in override if desired. |
+| **Surface Transparency** | Glassmorphism, `backdrop-filter: blur()`, translucency | **Yes** (`system`, `reduce`, `glass`) | Allows users with visual acuity or contrast impairments to disable glass blur in favor of high-legibility solid opaque surfaces. |
+| **High Contrast** | Border contrast, text lightness, specular removal | **No (System-driven)** | `forced-colors: active` and `prefers-contrast: more` are automatically honored via CSS tokens. Adding an app toggle without distinct brand palette redesign creates semantic confusion. |
+| **Text / UI Scaling** | Typography font size, container dimensions | **No (System-driven)** | Fixed desktop bounds (1120×780) are scaled natively by Windows DPI scaling and Chromium page zoom (`Ctrl +/-`). Artificial internal font scaling risks container clipping. |
+| **Keyboard & Focus** | Tab index, visible focus rings, escape listeners, modal trap | **No (Mandatory baseline)** | Core accessibility requirement that must always remain active, never disabled behind a setting. |
+| **Non-Color Cues** | Status badges, icons, text labels, step connectors | **No (Mandatory baseline)** | Information must never depend on color alone; guaranteed at the component level. |
+
+### 2. Precedence Matrix: System vs. App Configuration
+System accessibility settings remain **authoritative by default** (`system`), while providing deliberate, user-controlled override modes:
+
+#### Motion Preference Precedence:
+| App Motion Setting | System `prefers-reduced-motion` | Effective Preference | `data-acc-motion` DOM attribute | View Transition Iris Behavior |
+| :--- | :--- | :--- | :--- | :--- |
+| `system` (Default) | `no-preference` (Off) | `no-preference` | `system` | Animated 450ms WAAPI circular iris |
+| `system` (Default) | `reduce` (On) | `reduce` | `reduce` | **Instant theme switch (Motion suppressed)** |
+| `reduce` | `no-preference` (Off) | `reduce` | `reduce` | **Instant theme switch (Motion suppressed)** |
+| `reduce` | `reduce` (On) | `reduce` | `reduce` | **Instant theme switch (Motion suppressed)** |
+| `full` | `no-preference` (Off) | `no-preference` | `no-preference` | Animated 450ms WAAPI circular iris |
+| `full` | `reduce` (On) | `no-preference` | `no-preference` | **Animated 450ms WAAPI circular iris (User override)** |
+
+#### Transparency Preference Precedence:
+| App Transparency Setting | System `prefers-reduced-transparency` | Effective Preference | `data-acc-transparency` DOM attribute | Surface Treatment |
+| :--- | :--- | :--- | :--- | :--- |
+| `system` (Default) | `no-preference` | `no-preference` | `system` | Apple HIG Liquid Glass (`backdrop-filter: blur(20px)`) |
+| `system` (Default) | `reduce` | `reduce` | `reduce` | Solid opaque surfaces (`backdrop-filter: none !important`) |
+| `reduce` | Any | `reduce` | `reduce` | **Solid opaque surfaces (`backdrop-filter: none !important`)** |
+| `glass` | Any | `no-preference` | `glass` | Apple HIG Liquid Glass (`backdrop-filter: blur(20px)`) |
+
+### 3. Persistence & Runtime Storage Architecture
+- **Storage Mechanism**: Backed by browser `localStorage`, consistent with existing application settings:
+  - `cvsu_acc_motion`: `"system" | "reduce" | "full"`
+  - `cvsu_acc_transparency`: `"system" | "reduce" | "glass"`
+- **Bootstrap Lifecycle**: `applyAccessibilityPreferences()` runs synchronously in `executable_test/js/theme.js` at script parse time (prior to DOM rendering) and binds dynamic listeners to `window.matchMedia` change events.
+- **DOM Stamp**: Sets `data-acc-motion` and `data-acc-transparency` on `document.documentElement`, allowing CSS rules in `modals.css` and `components.css` to react immediately without page reload.
+- **Reset Integration**: `resetConfigSettings()` restores both keys to `"system"`, synchronizing UI dropdowns and clearing DOM overrides.
+
+### 4. Theme-Transition Integration
+In `theme.js`, the View Transition theme toggle checks `getEffectiveMotionPreference()` before starting the transition:
+```javascript
+if (getEffectiveMotionPreference() === "reduce") {
+    // Honor reduced motion: instant theme switch, no WAAPI circular iris
+    document.documentElement.setAttribute("data-theme", targetTheme);
+    saveTheme(targetTheme);
+    updateThemeIcons(targetTheme);
+    return;
+}
+```
+This guarantees that when reduced motion is effective (either via Windows Animation effects or app setting), large-scale spatial transitions are strictly prevented.
+
+---
+
 ### Zero Runaway Transitions
 
 All DOM CSS transitions are suppressed during the VT via `.theme-transitioning * { transition: none !important }`, preventing cascade storms.
 - Measurement window is strictly bounded to the VT lifecycle: `[click] → [transition.finished + double-rAF cleanup]`.
 - Because `spin-morph` is an `@keyframes` animation and WAAPI does not fire DOM `transitionstart` events, the event count is **deterministically 0**.
 - Automated performance testing verifies 0 runaway events across 5 consecutive back-and-forth toggles without flakiness.
+
 
 
 

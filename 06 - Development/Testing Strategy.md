@@ -6,9 +6,10 @@ tags:
   - pytest
   - playwright
 status: active
-last_modified: 2026-09-18
+last_modified: 2026-10-01
 source_of_truth:
   - tests/
+  - tests/test_accessibility_settings.py
   - tests/test_ui_asset_resilience.py
   - tests/test_diagnostic_probe.py
   - tests/test_dependency_manifests.py
@@ -135,5 +136,13 @@ Validates the compiled `CvSU Gen.exe` runtime host environment:
 - Validates full promise resolution lifecycle (`updateCallbackDone`, `ready`, `finished`).
 - Verifies WAAPI execution on `::view-transition-new(root)` pseudo-element (`playState: "running"`).
 - Diagnoses host accessibility integration (`prefers-reduced-motion: reduce` synchronized with Windows `SPI_GETCLIENTAREAANIMATION`).
+
+### 11. Accessibility Settings & Precedence Testing (`tests/test_accessibility_settings.py`)
+Validates the accessibility settings architecture across UI markup, CSS tokens, and JavaScript runtime resolution:
+- **Markup & ARIA Semantics**: Asserts `#cfgTabAccessibility`, `#cfgPaneAccessibility`, `#accMotionSelect`, `#accTransparencySelect`, and associated `<label for="...">` and `.setting-desc` descriptions exist with correct accessible names and options.
+- **CSS Surface Overrides**: Asserts that `modals.css` defines `[data-acc-transparency="reduce"]` with `backdrop-filter: none !important` and solid opaque background tokens on all primary glass containers.
+- **Precedence Resolution Matrix**: Verifies all combinations of system preferences (`no-preference` vs `reduce`) and app settings (`system`, `reduce`, `full`/`glass`) using simulated DOM and localStorage environments.
+- **Settings Controller Integration**: Confirms `switchConfigTab()` supports `"Accessibility"` and `resetConfigSettings()` restores accessibility selections to `"system"`.
+
 
 
