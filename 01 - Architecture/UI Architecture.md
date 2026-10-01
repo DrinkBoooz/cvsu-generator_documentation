@@ -6,7 +6,7 @@ tags:
   - ui
   - accessibility
 status: active
-last_modified: 2026-09-30
+last_modified: 2026-10-01
 source_of_truth:
   - executable_test/ui.html
   - executable_test/css/base.css
@@ -201,65 +201,95 @@ Non-modal notification system replacing blocking dialog alerts:
 
 The dark/light theme toggle uses the **CSS View Transitions API** (Chrome/Chromium) to produce a circular iris reveal originating from the click coordinates. The architecture enforces strict separation of responsibilities.
 
-### Architecture (commit 193–195)
+### Architecture (commit 196)
 
 | Responsibility | Owner |
 |---|---|
 | Click-origin geometry (`x`, `y`, `endRadius`) | `theme.js` |
 | CSS custom properties (`--vt-x`, `--vt-y`, `--vt-radius`, `--vt-duration`) | `theme.js` injects onto `:root` |
-| Iris `clip-path` animation (`appleThemeIrisReveal`) | `modals.css` **sole owner** |
-| Glass edge specular glow (`--vt-edge-specular`) | `modals.css` — VT-native via `filter` on `::view-transition-new(root)` |
-| `prefers-reduced-motion` fallback crossfade | `modals.css` **sole owner** — no JS intervention required |
+| Iris `clip-path` circular reveal animation | **`theme.js` via WAAPI** — sole owner |
+| Glass edge specular glow (`--vt-edge-specular`) | `modals.css` — static VT-native `filter` on `::view-transition-new(root)` |
+| `prefers-reduced-motion` detection | `theme.js` — checked in JS *before* View Transition starts |
+| `prefers-reduced-motion` fallback | `modals.css` + `theme.js` — JS skips WAAPI iris; CSS provides crossfade |
+| `prefers-reduced-transparency` opaque fallback | `modals.css` media query |
+| `prefers-contrast: more` edge treatment | `modals.css` media query |
 
-### Why JS does NOT animate `::view-transition-new(root)` via WAAPI
+### WAAPI Iris Flow (commit 196)
 
-The Web Animations API (`element.animate({ clipPath: ... }, { pseudoElement })`) was initially used but caused **choppy competing animations** — CSS and JS simultaneously owned the `clip-path` property on the same pseudo-element. Commit 193 removed the WAAPI call entirely. CSS is the sole `clip-path` animation owner.
+```
+document.startViewTransition(() => { applyTheme(); })
+        ↓
+transition.ready  ← CRITICAL: pseudo-elements do not exist until after this resolves
+        ↓
+document.documentElement.animate(
+    { clipPath: [ "circle(0px at x y)", "circle(endRadius at x y)" ] },
+    { duration: 450, easing: "cubic-bezier(0.2, 0, 0, 1)",
+      fill: "both", pseudoElement: "::view-transition-new(root)" }
+)
+        ↓
+await transition.finished
+        ↓
+cleanup (theme-transitioning removed in requestAnimationFrame)
+```
+
+### Why WAAPI and not CSS `animation`
+
+Commit 193 established CSS-only iris ownership (`appleThemeIrisReveal @keyframes`). Commit 195 continued with CSS animation. In the actual CvSU Gen runtime environment, the CSS-only approach did not produce a visible iris reveal. Commit 196 reverts to WAAPI-driven `clip-path` animation on the pseudo-element, which is the more explicit and widely-documented pattern and which has been runtime-verified to produce the expected growing circle.
+
+Dual ownership (CSS animation + WAAPI simultaneously on the same property) causes competing animations and was the root cause of the earlier choppiness in commit 192. The solution is strict single ownership: WAAPI owns the geometry, CSS owns the static styling.
 
 ### View Transition Rendering Model (Accurate)
 
-The CSS View Transitions rendering model defines a **dedicated VT layer** that is painted by the browser **after** the normal document is fully composited. No DOM element — regardless of z-index value — can be placed into or alongside this layer. Normal DOM z-index has no defined relationship to the VT rendering layer.
+The CSS View Transitions API defines a **dedicated VT layer** painted by the browser **after** the normal document is fully composited. No DOM element — regardless of z-index value — can be placed into or alongside this layer. Normal DOM z-index has no defined relationship to the VT rendering layer.
 
 ```
 ::view-transition           (browser VT layer — separate post-compositing pass)
   └─ ::view-transition-image-pair(root)
        ├─ ::view-transition-old(root)   z-index: 1  (old page snapshot, static)
-       └─ ::view-transition-new(root)   z-index: 2  (new page, iris clip-path grows)
-            animation: appleThemeIrisReveal 450ms    ← CSS-owned iris expand
-            filter: var(--vt-edge-specular)          ← VT-native glass edge drop-shadow
+       └─ ::view-transition-new(root)   z-index: 2  (new page, WAAPI clip-path grows)
+            filter: var(--vt-edge-specular)          ← CSS-owned static glass edge treatment
 ```
 
-The `filter: drop-shadow(...)` is applied **inside** the VT pseudo-element render pass, **after** `clip-path`. The drop-shadow therefore draws outside the iris circle boundary as it expands, tracing the edge with zero extra DOM elements.
+The VT pseudo-element receives a restrained specular filter treatment while WAAPI owns the circular reveal geometry.
 
-### DOM Wavefront Eliminated (commit 195)
+### DOM Wavefront Eliminated (commit 195, confirmed commit 196)
 
-Commit 194 introduced a `.theme-glass-wavefront` DOM overlay claiming `z-index: 2147483646` placed it "alongside the VT host". This was incorrect on three counts and was eliminated in commit 195:
+Commits 194 and 195 explored a `.theme-glass-wavefront` DOM overlay. This approach failed on three counts and has been permanently eliminated:
 
-1. **Snapshotted into old-page capture**: The element was created *before* `document.startViewTransition()`. Chromium snapshots the document state at the moment `startViewTransition()` is called. A DOM element created before this call is captured in `::view-transition-old(root)` — not a live overlay above the transition.
+1. **Snapshotted into old-page capture**: DOM elements created *before* `document.startViewTransition()` are captured in `::view-transition-old(root)` — not live overlays above the transition.
 
-2. **z-index claim was false**: The comment stated z-index 2147483646 was "one below the Chromium VT host INT_MAX", implying compositor adjacency. The VT layer is a separate rendering pass; DOM z-index cannot express a relationship to it.
+2. **z-index claim was false**: The VT layer is a separate rendering pass. DOM z-index has no defined relationship to it.
 
-3. **backdrop-filter on snapshot blurs frozen pixels**: `backdrop-filter` on a DOM element snapshotted into the old-page capture blurs frozen pixels from the snapshot, not live composited content beneath the iris.
+3. **backdrop-filter on snapshot**: `backdrop-filter` on a snapshotted element blurs frozen pixels, not live composited content.
 
-### Apple HIG Glass Material Spec (CSS-only, VT-native)
+### Accessibility
 
-From `liquid-glass.md § Color on glass` and `§ Cross-platform translation`:
+**Reduced Motion (`prefers-reduced-motion: reduce`)**
+
+WAAPI iris is JS-owned, so the reduced-motion bypass must occur in JS:
+- JS detects reduced-motion *before* starting the View Transition.
+- When active: no WAAPI `clip-path` animation, no icon `spin-morph`, theme applied directly via a simple crossfade or direct DOM update.
+- CSS `prefers-reduced-motion` block clears `filter: none` on the VT pseudo-elements for completeness.
+
+**Reduced Transparency (`prefers-reduced-transparency: reduce`)**
+- `modals.css` increases specular opacity and removes transparency-dependent decoration.
+
+**Increased Contrast (`prefers-contrast: more`)**
+- `modals.css` increases edge contrast, removes soft glow, strengthens border visibility.
+
+### Glass Edge Material Spec (VT-native, CSS-owned)
+
+The iris edge is not a live `backdrop-filter` annulus. It is a static specular filter applied to the VT pseudo-element snapshot — a glass-like edge treatment, accurately described as VT-native.
 
 | Property | Value | Notes |
 |---|---|---|
-| Iris edge specular | `drop-shadow(0 0 1px rgba(255,255,255,0.80)) drop-shadow(0 0 6px rgba(255,255,255,0.20))` | VT-native: `filter` on `::view-transition-new(root)` |
-| Light theme specular | `drop-shadow(0 0 1px rgba(0,0,0,0.18)) drop-shadow(0 0 6px rgba(4,120,87,0.14))` | `[data-theme="light"]` override |
+| Iris edge specular | `drop-shadow(0 0 1px rgba(255,255,255,0.70)) drop-shadow(0 0 5px rgba(255,255,255,0.15))` | Static; applied to VT new-root snapshot |
+| Light theme specular | `drop-shadow(0 0 1px rgba(0,0,0,0.15)) drop-shadow(0 0 5px rgba(4,120,87,0.10))` | `[data-theme="light"]` override |
 | Color | Monochrome specular only — no inherent color | HIG: `liquid-glass.md § Color on glass` |
-
-### Accessibility — `prefers-reduced-motion`
-
-Per `accessibility.md § Cognitive` and `motion.md § Best practices`:
-- The iris `clip-path` grow animation is dropped entirely (`animation: none !important`).
-- The VT-native specular filter is cleared (`filter: none !important`).
-- A simple 200ms opacity crossfade (`vt-fade-out` / `vt-fade-in`) replaces the iris.
-- **CSS owns this fallback entirely** — no JS intervention required.
 
 ### Zero Runaway Transitions
 
-All DOM CSS transitions are suppressed during the VT via `.theme-transitioning * { transition: none !important }`, preventing the cascade storms (700+ `transitionstart` events) that occurred before commit 190.
+All DOM CSS transitions are suppressed during the VT via `.theme-transitioning * { transition: none !important }`, preventing cascade storms. The `theme-transitioning` class is added **before** any class mutation (including `spin-morph`) and is removed via `requestAnimationFrame` after `transition.finished` to prevent re-cascade on cleanup.
+
 
 
