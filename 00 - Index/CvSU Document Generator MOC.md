@@ -5,7 +5,7 @@ tags:
   - index
   - moc
 status: active
-last_modified: 2026-09-17
+last_modified: 2026-10-02
 source_of_truth:
   - executable_test/
   - modules/
@@ -26,6 +26,7 @@ graph TD
     DiscPipe["[[Template Discovery Pipeline]]"]
     Orch["[[Orchestrator Lifecycle]]"]
     UI["[[UI Architecture]]"]
+    Persist["[[Persistent State Architecture]]"]
 
     Gens["[[Generators Overview]]"]
     CEITGen["[[CEIT Generator]]"]
@@ -62,6 +63,7 @@ graph TD
     Arch --> DiscPipe
     Arch --> Orch
     Arch --> UI
+    Arch --> Persist
 
     Gens --> CEITGen
     Gens --> AttGen
@@ -95,6 +97,7 @@ graph TD
 - **[[Template Discovery Pipeline]]**: Dynamic template discovery, recipe validation, schema v2 contracts, and immutable lifecycle.
 - **[[Orchestrator Lifecycle]]**: Threading, progress telemetry, cancellation tokens, and error aggregation in `process_all`.
 - **[[UI Architecture]]**: Responsive 6-step workflow stepper, decoupled CSS architecture, inline visibility failsafe, and accessibility (WCAG 2.1 AA).
+- **[[Persistent State Architecture]]**: Two-tier dedicated persistence model, application configuration vs user preferences, 0ms startup cache, and reset isolation.
 
 ### ⚙️ 02 - Document Generators
 

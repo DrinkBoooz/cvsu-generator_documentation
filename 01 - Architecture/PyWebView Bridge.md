@@ -6,8 +6,9 @@ tags:
   - pywebview
   - ipc
 status: active
-last_modified: 2026-09-17
+last_modified: 2026-10-02
 source_of_truth:
+  - modules/common/preferences_manager.py
   - executable_test/api/__init__.py
   - executable_test/api/base.py
   - executable_test/api/schedule_roster.py
@@ -110,9 +111,14 @@ Utility functions: `sanitize_filename(filename)`, `get_resource_path(relative_pa
 | `get_ceit_prefix_directory()` | Returns the CEIT prefix map from `config_manager` |
 | `get_parser_config()` | Returns full config dict (all keys: prefix map, lab codes, aliases, keywords, schedule config) |
 | `save_parser_config(config_dict)` | Persists new config; triggers re-validation and re-detection; returns `{status, validation, detected_classes}` |
-| `reset_parser_config()` | Resets all settings to factory defaults; re-validates |
+| `reset_parser_config()` | Resets parser settings to factory defaults; re-validates (isolated from user preferences) |
 | `export_parser_config()` | Opens Save dialog; writes `cvsu_parser_config.json` |
 | `import_parser_config()` | Opens file picker; imports and merges JSON config |
+| `get_user_preferences()` | Returns active user preferences (theme, motion, transparency) from `preferences_manager` |
+| `save_user_preferences(prefs_dict)` | Validates and persists user preferences to disk; updates memory cache |
+| `reset_user_preferences()` | Resets user preferences to factory defaults (isolated from parser settings) |
+| `export_user_preferences()` | Opens Save dialog; writes `cvsu_user_preferences.json` |
+| `import_user_preferences()` | Opens file picker; imports and validates user preferences JSON |
 
 ---
 
