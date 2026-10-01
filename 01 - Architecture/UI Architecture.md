@@ -258,6 +258,23 @@ The CSS View Transitions API defines a **dedicated VT layer** painted by the bro
 - Headed browser visual tests across multiple viewports (880×640, 1120×780, 1440×900) confirm the transition presents as a **crisp, razor-sharp circular geometric reveal (Apple-style clean iris wipe)** rather than a blurred halo, neon ring, or full-screen bloom.
 - Normal application glassmorphism (`backdrop-filter: blur(...)`) remains active on UI cards, navigation headers, and floating docks, but operates independently of the View Transition snapshot pipeline.
 
+### View Transition Pseudo-Tree Experimental Findings (commit 198)
+
+An empirical investigation was conducted in Chromium 151+ to explore whether `backdrop-filter` or masking on VT pseudo-elements could produce a live frosted-glass annulus:
+
+1. **`backdrop-filter` on `::view-transition-new(root)` (Exp A)**:
+   - Evaluated `backdrop-filter: blur(16px) saturate(180%)`.
+   - Result: **Zero visible change**. Because `::view-transition-new(root)` contains an opaque raster snapshot of the destination document, its opaque pixels cover whatever backdrop-filter renders underneath inside the circular clip. Outside the circle, `clip-path` discards the entire pseudo-element (content and filter alike).
+2. **`backdrop-filter` on `::view-transition-image-pair(root)` (Exp B) & `::view-transition-group(root)` (Exp C)**:
+   - Result: **Completely occluded**. Outside the circle, `old(root)` is 100% opaque. Inside the circle, `new(root)` is 100% opaque. Because `old` and `new` meet seamlessly with no gap, the container's backdrop is fully occluded everywhere across the viewport.
+3. **Annulus / Ring Masking (Exp D)**:
+   - Masking `new(root)` with a radial gradient punches out the center of the new theme, revealing the old theme in the interior. A single pseudo-element cannot simultaneously display an opaque interior disk AND a blurred translucent border without a second layer.
+4. **Pseudo-Element Nesting (Exp E)**:
+   - Attempting `::view-transition-new(root)::before` or `::view-transition-image-pair(root)::after` produces a CSS parse error. Pseudo-elements cannot be nested inside View Transition pseudo-elements.
+5. **Conclusion**:
+   - The current CSS View Transitions Level 1/2 specifications and browser implementations do not provide an independent layer for a secondary glass wavefront without introducing DOM overlays (which fail due to snapshot freezing and layer isolation).
+   - The production architecture intentionally keeps the clean, compositor-friendly WAAPI circular reveal and monochrome specular filter without overengineering or faking glassmorphism.
+
 ### Icon Animation Contract (`spin-morph`)
 
 In commit 197, `spin-morph` was refactored to **Option A (CSS `@keyframes` animation)**:
