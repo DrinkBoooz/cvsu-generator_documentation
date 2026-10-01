@@ -275,6 +275,30 @@ An empirical investigation was conducted in Chromium 151+ to explore whether `ba
    - The current CSS View Transitions Level 1/2 specifications and browser implementations do not provide an independent layer for a secondary glass wavefront without introducing DOM overlays (which fail due to snapshot freezing and layer isolation).
    - The production architecture intentionally keeps the clean, compositor-friendly WAAPI circular reveal and monochrome specular filter without overengineering or faking glassmorphism.
 
+### Captured Frosted-Glass Material Prototype Findings (commit 199)
+
+In Commit 199, an isolated prototype investigation was conducted to determine whether a **captured/static frosted-glass material** masked to a moving annulus could create the visual impression of a glass edge moving with the iris.
+
+#### Tested Approaches in Headed Chromium:
+1. **Experiment A (Captured DOM Surface via VT Named Group)**:
+   - Full-viewport DOM element with `backdrop-filter: blur(16px) saturate(1.35)` captured as `::view-transition-old(glass-annulus)`.
+   - An animated radial-gradient mask on `::view-transition-group(glass-annulus)` restricted visibility to a 14px annulus ($R_{\text{outer}} = R, R_{\text{inner}} = \max(0, R - 14\text{px})$) synchronized with the WAAPI circular iris.
+   - **Empirical Visual Result**: **Severe raster ghosting and text duplication (Rejected)**. Because the captured material is a frozen raster snapshot of the pre-transition document, revealing it through a moving ring slices stationary old-theme content into the ring. When moving over cards or headers, text ("Active Roster Configuration", toggle button, badges) appears severed and doubled. It resembles a circular tear revealing an old photograph rather than a moving glass lens.
+2. **Experiment B (CSS Snapshot Material)**:
+   - Applying `filter: blur(...)` to `::view-transition-old(root)`.
+   - **Empirical Visual Result**: **Unrevealed viewport degradation (Rejected)**. Blurring `old(root)` blurs the entire viewport outside the expanding iris, muddying the previous theme before it is revealed.
+3. **Experiment C (Decorative Annulus Wavefront Overlay)**:
+   - An SVG/DOM stroke ring tracking the iris without raster capture.
+   - **Empirical Visual Result**: **Synthetic neon ripple appearance (Rejected)**. Without live optical refraction of underlying pixels, the overlay looks like an artificial geometric ripple or halo rather than physical glass material.
+
+#### Final Decision & Architectural Stance:
+- **Outcome C (Visually Poor & Distracting)**: Integrating a captured frosted-glass annulus is definitively rejected. The visual artifacts (severed text, ghosting, raster parallax) severely degrade interface craft and violate Apple HIG guidelines (`liquid-glass.md` § Layer discipline & `motion.md` § Providing feedback).
+- **Production Baseline Preserved**: Production code (`executable_test/js/theme.js`, `executable_test/css/modals.css`) strictly preserves the Commit 198 baseline:
+  - WAAPI-driven circular reveal on `::view-transition-new(root)`.
+  - Static monochrome specular filter (`--vt-edge-specular: drop-shadow(...)`).
+  - Zero DOM wavefront layers, zero runaway cascade (`transitionstart` count $\equiv 0$).
+  - Authentic `backdrop-filter` glassmorphism preserved exclusively on static/floating UI components (`.card`, `.header`, `.stepper-dock`).
+
 ### Icon Animation Contract (`spin-morph`)
 
 In commit 197, `spin-morph` was refactored to **Option A (CSS `@keyframes` animation)**:
