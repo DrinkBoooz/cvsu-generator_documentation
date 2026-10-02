@@ -7,19 +7,21 @@ tags:
   - configuration
   - preferences
 status: active
-last_modified: 2026-10-02
+last_modified: 2026-10-03
 source_of_truth:
   - modules/common/config_manager.py
   - modules/common/preferences_manager.py
+  - modules/services/template_set_manager.py
   - executable_test/api/config.py
   - executable_test/js/theme.js
   - executable_test/js/settings.js
   - executable_test/js/app.js
+  - tests/test_persistent_state_authority_inventory.py
 ---
 
 # Persistent State Architecture
 
-This document defines the authoritative persistence architecture for the CvSU Document Generator. It specifies the canonical separation between **Application Configuration**, **User Preferences**, and **Transient UI State**, establishing the storage mechanisms, startup synchronization, reset semantics, and corruption safety guarantees.
+This document defines the authoritative persistence architecture for the CvSU Document Generator. It specifies the canonical separation between **Application Configuration**, **User Preferences**, **Transient UI State**, and **Cache / Compatibility**, establishing the storage mechanisms, startup synchronization, reset semantics, and corruption safety guarantees.
 
 Related notes:
 - [[CvSU Document Generator MOC]]
@@ -36,9 +38,11 @@ The system enforces **Model C: Dedicated Two-Tier Architecture**, strictly isola
 
 ```mermaid
 graph TD
-    subgraph Tier1["Tier 1: Authoritative Python Storage (%APPDATA%/CVSU_Generators/config/)"]
-        ParserFile["parser_settings.json<br/>(ParserConfigManager)"]
-        PrefsFile["user_preferences.json<br/>(PreferencesManager)"]
+    subgraph Tier1["Tier 1: Authoritative Python Storage (%APPDATA%/CVSU_Generators/)"]
+        ParserFile["config/parser_settings.json<br/>(ParserConfigManager)"]
+        CustomTemplates["custom_templates/templates.json<br/>(ParserConfigManager)"]
+        TemplateSets["template_sets/<set_id>/manifest.json<br/>active_template_set.json<br/>(TemplateSetManager)"]
+        PrefsFile["config/user_preferences.json<br/>(PreferencesManager)"]
     end
 
     subgraph Tier2["Tier 2: Fast Startup Cache (WebView2 / Browser)"]
@@ -59,8 +63,8 @@ graph TD
     HeadScript -->|Immediate Read| LocalStorage
     HeadScript -->|Instant Set| UI
 
-    APIConfig -->|Atomic Read/Write| ParserFile
-    APIConfig -->|Atomic Read/Write| PrefsFile
+    APIConfig -->|Delegated Call| ParserFile
+    APIConfig -->|Delegated Call| PrefsFile
 
     UI -->|Write-Through| LocalStorage
     UI -->|Write-Through| APIConfig
@@ -72,30 +76,41 @@ graph TD
 
 ## 📦 Classification Model & Inventory
 
-Every piece of state in the application belongs to exactly one of four canonical categories:
+State in the repository is strictly partitioned into the **Four Canonical Model C Categories**, with diagnostic logs explicitly segregated outside the application-state model:
 
-1. **Application Configuration**:
-   - Controls document generation behavior, curriculum parsing rules, prefix mappings, lab subjects, program aliases, and custom templates.
-   - **Canonical Owners**:
-     - `%APPDATA%/CVSU_Generators/config/parser_settings.json` (managed exclusively by `ParserConfigManager`)
-     - `%APPDATA%/CVSU_Generators/config/custom_templates/custom_templates.json` (managed by `ParserConfigManager` / `TemplateSetManager`)
-     - `%APPDATA%/CVSU_Generators/config/template_sets/` & `active_template_set.json` (managed by `TemplateSetManager`)
-2. **User Preferences**:
+1. **Application Configuration (Model C)**:
+   - Controls document generation behavior, curriculum parsing rules, prefix mappings, lab subjects, program aliases, custom templates, and template sets.
+   - **Canonical Stores & Owners**:
+     - `%APPDATA%/CVSU_Generators/config/parser_settings.json` (owned and written exclusively by `ParserConfigManager` via `save_config()`).
+     - `%APPDATA%/CVSU_Generators/custom_templates/templates.json` and `*.docx` (owned and written exclusively by `ParserConfigManager` via `save_custom_template()`, `toggle_custom_template()`, `delete_custom_template()`).
+     - `%APPDATA%/CVSU_Generators/template_sets/<set_id>/manifest.json` and `templates/` (owned and written exclusively by `TemplateSetManager` via `_save_template_set()`).
+     - `%APPDATA%/CVSU_Generators/active_template_set.json` (owned and written exclusively by `TemplateSetManager` via `set_active_template_set()`).
+2. **User Preferences (Model C)**:
    - Controls personal ergonomic experience (theme, accessibility motion, accessibility transparency).
-   - **Canonical Owner**: `%APPDATA%/CVSU_Generators/config/user_preferences.json` (managed exclusively by `PreferencesManager`).
-3. **Transient UI State**:
-   - Ephemeral UI or workflow state not intended to survive application restart (e.g. active wizard step, toast queues, progress bars, cancellation tokens, dialog handles) or client-side form memory (output directory, date pickers, column mappings).
+   - **Canonical Store & Owner**:
+     - `%APPDATA%/CVSU_Generators/config/user_preferences.json` (owned and written exclusively by `PreferencesManager` via `save_preferences()` / `update_preferences()`).
+3. **Transient UI State (Model C)**:
+   - Ephemeral UI or workflow state not intended to survive application restart (active wizard step, toast queues, progress bars, cancellation tokens, dialog handles) or client-side session memory (output directory, date pickers, column mappings).
    - **Canonical Owner**: Client UI Session / DOM Memory.
-4. **Cache / Compatibility**:
+4. **Cache / Compatibility (Model C)**:
    - Temporary acceleration or legacy migration support (0ms startup paint cache in `localStorage`, migration marker flags).
    - **Canonical Owner**: `localStorage` (governed by `theme.js` and converged from `user_preferences.json`). Must **NEVER** accidentally become a new authority.
+5. **Diagnostic Artifact (Outside Model C State)**:
+   - Operational runtime diagnostics and crash logs.
+   - `%APPDATA%/CVSU_Generators/logs/app.log` (managed by `logger.py` via `RotatingFileHandler`).
+   - `%APPDATA%/CVSU_Generators/logs/crash_*.log` (managed by `logger.py` crash handlers).
+   - Diagnostic reports generated via CLI flags (`--diag-theme`, `--diag-persistence`).
+   - These files provide forensic observability and are strictly separated from application configuration and user preferences.
 
 | Category | Canonical Store | Schema / Keys | Portability / Export | Reset Scope |
 |---|---|---|---|---|
-| **Application Configuration** | `%APPDATA%/CVSU_Generators/config/parser_settings.json` | `ceit_prefix_map`, `base_subject_prefixes`, `known_lab_subjects`, `program_aliases`, `roster_keywords`, `schedule_config` | Exportable via `export_parser_config()` (`cvsu_parser_config.json`) | "Reset Configuration" button resets parser only |
+| **Application Configuration** | `%APPDATA%/CVSU_Generators/config/parser_settings.json` | `ceit_prefix_map`, `base_subject_prefixes`, `known_lab_subjects`, `program_aliases`, `roster_keywords`, `schedule_config` | Exportable via `export_parser_config()` (`cvsu_parser_config.json`) | "Reset Configuration" button resets parser settings only |
+| **Application Configuration** | `%APPDATA%/CVSU_Generators/custom_templates/templates.json` | Array of template metadata entries (`id`, `title`, `suffix`, `filename`, `enabled`, `recipe`) | User `.docx` and recipes | Removed individually or reset via custom template manager |
+| **Application Configuration** | `%APPDATA%/CVSU_Generators/template_sets/` | Set manifest (`manifest.json`) and template files | Exportable as `.zip` template set bundles | Built-in set is immutable; custom sets deleted via `TemplateSetManager` |
 | **User Preferences** | `%APPDATA%/CVSU_Generators/config/user_preferences.json` | `version` (`"1.0"`), `theme` (`"dark"` \| `"light"`), `accessibility.motion` (`"system"` \| `"reduce"` \| `"full"`), `accessibility.transparency` (`"system"` \| `"reduce"` \| `"glass"`) | Exportable via `export_user_preferences()` (`cvsu_user_preferences.json`). Strictly canonical schema. | Reset via `reset_user_preferences()`; isolated from parser; updates cache and sets `cvsu_prefs_migrated="true"` |
 | **Transient UI State** | In-Memory (DOM / JavaScript variables) & Client Session | Active stepper tab, toast notifications queue, progress bar percentage, generation cancellation tokens, file picker dialog handles | Never exported; reset on window reload/exit | Naturally discarded upon window close |
 | **Cache / Compatibility** | `localStorage` (`cvsu_gen_theme`, `cvsu_acc_*`, `cvsu_prefs_migrated`) | Sanitized strings (`"dark"`, `"light"`, `"system"`, `"reduce"`, `"full"`, `"glass"`, `"true"`) | Never exported; local device acceleration only | Synchronized from disk authority on `pywebviewready` or cleared on reset |
+| **Diagnostic Artifact** | `%APPDATA%/CVSU_Generators/logs/` | Log text and exception stack traces | Local device only | Rotated automatically; unaffected by settings reset |
 
 ---
 
@@ -118,9 +133,9 @@ Every key accessed in `localStorage` across the frontend code (`executable_test/
 
 ---
 
-## 🔒 Single-Owner Write Paths & Boundary Isolation
+## 🔒 Single-Owner Write Paths & Complete-Document Import Contracts
 
-To eliminate duplicate authorities and cross-subsystem contamination:
+To eliminate duplicate authorities, cross-subsystem contamination, and destructive partial imports:
 
 1. **User Preferences Ownership**:
    - `PreferencesManager` is the **sole writer** of `%APPDATA%/CVSU_Generators/config/user_preferences.json`.
@@ -128,13 +143,16 @@ To eliminate duplicate authorities and cross-subsystem contamination:
    - All theme and accessibility mutations flow strictly through `PreferencesManager.save_preferences()` or `PreferencesManager.update_preferences()`.
 2. **Parser Configuration Ownership**:
    - `ParserConfigManager` is the **sole writer** of `%APPDATA%/CVSU_Generators/config/parser_settings.json`.
-   - No frontend script or preference manager writes directly to this file.
-3. **Import / Export Boundary Isolation**:
-   - `export_parser_config()` exports strictly parser configuration (prefixes, aliases, schedule rules). It contains zero theme or accessibility keys.
-   - `export_user_preferences()` exports strictly user preferences (version, theme, motion, transparency). It contains zero parser keys and zero diagnostic metadata (`_persisted`).
-   - `import_parser_config()` validates that the source JSON contains recognized parser keys. If passed a user preferences file, it rejects the import with an error status and leaves active parser settings untouched.
-   - `import_user_preferences()` validates that the source JSON contains recognized user preference keys (`theme`, `accessibility`). If passed a parser configuration file, it rejects the import with an error status and leaves active user preferences untouched (no theme change, no motion change, no transparency change).
-4. **Startup Synchronization Order**:
+   - Custom template files are written exclusively by `ParserConfigManager` under `%APPDATA%/CVSU_Generators/custom_templates/`.
+3. **Template Set Ownership**:
+   - `TemplateSetManager` is the **sole writer** of `%APPDATA%/CVSU_Generators/template_sets/<set_id>/manifest.json` and `%APPDATA%/CVSU_Generators/active_template_set.json`.
+4. **Strict Complete-Document Import Contract**:
+   - Given the explicit architecture distinguishing complete replacement (`save_*()`) from partial merging (`update_*()`), all external file imports follow the **complete-document contract**:
+     - `import_parser_config()` requires a complete canonical parser configuration document containing all six required canonical keys (`ceit_prefix_map`, `base_subject_prefixes`, `known_lab_subjects`, `program_aliases`, `roster_keywords`, `schedule_config`) with valid types. Incomplete documents (e.g. providing only prefixes) are rejected with a clear error without mutating active state.
+     - `import_user_preferences()` requires a complete canonical preference document containing `theme` and `accessibility` (with both `motion` and `transparency`). Incomplete documents (e.g. providing only `theme`) are rejected with a clear error without mutating active state.
+     - Cross-domain imports (e.g. importing preferences into parser manager or parser config into preferences manager) are rejected cleanly with an error status.
+     - Rejected imports guarantee that active canonical state remains completely unchanged.
+5. **Startup Synchronization Order**:
    ```text
    HTML <head>
        ↓
