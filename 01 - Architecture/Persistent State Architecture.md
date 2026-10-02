@@ -191,9 +191,12 @@ Both `ParserConfigManager` and `PreferencesManager` implement rigorous defensive
    - Exact version `"1.0"` is accepted.
    - Unsupported or future versions (e.g. `"2.0"`, `"2.5-beta"`), or invalid data types (e.g. list/dict) deterministically fall back to safe canonical defaults with a logged warning.
    - The system makes no false claim of having "migrated" an unrecognised future schema; a formal structural migration system will be required before supporting future schema revisions.
-4. **Thread & Concurrency Safety**:
-   - `PreferencesManager` protects read/write operations and in-memory cache synchronization with a `threading.RLock()`.
-   - The initialization/read path in `get_preferences()` is clean and explicit: if `_cached_preferences is None`, it initializes under lock via `_load_under_lock()`, and returns `deepcopy(self._cached_preferences)` without no-op locking blocks.
+4. **Thread & Concurrency Safety (In-Process Scoping)**:
+   - Concurrency guarantees are **explicitly scoped to in-process manager serialization plus atomic file replacement**.
+   - `PreferencesManager` serializes all partial updates, reads, and in-memory cache synchronizations using a process-local reentrant lock (`threading.RLock()`).
+   - Atomic disk replacement (`tempfile.mkstemp` + `os.replace`) ensures filesystem write integrity against abrupt termination.
+   - The application does not implement cross-process file locks or distributed mutexes; if an external process modifies `user_preferences.json`, filesystem integrity relies on OS-level atomic replace semantics.
+   - The initialization/read path in `get_preferences()` is clean and explicit: if `_cached_preferences is None`, it initializes under lock via `_load_under_lock()`, and returns an independent defensive copy (`deepcopy(self._cached_preferences)`) without no-op locking blocks.
    - Callback listeners are dispatched strictly outside the lock to prevent deadlocks with foreign subscriber logic.
 5. **Preference Listeners Contract**:
    - Listeners receive independent defensive copies of the canonical preference document. Mutating a listener payload cannot mutate manager state.
