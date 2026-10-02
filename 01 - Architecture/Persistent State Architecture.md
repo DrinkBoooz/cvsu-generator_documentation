@@ -70,32 +70,86 @@ graph TD
 
 ---
 
-## 📦 State Categorization & Inventory
+## 📦 Classification Model & Inventory
+
+Every piece of state in the application belongs to exactly one of four canonical categories:
+
+1. **Application Configuration**:
+   - Controls document generation behavior, curriculum parsing rules, prefix mappings, lab subjects, program aliases, and custom templates.
+   - **Canonical Owners**:
+     - `%APPDATA%/CVSU_Generators/config/parser_settings.json` (managed exclusively by `ParserConfigManager`)
+     - `%APPDATA%/CVSU_Generators/config/custom_templates/custom_templates.json` (managed by `ParserConfigManager` / `TemplateSetManager`)
+     - `%APPDATA%/CVSU_Generators/config/template_sets/` & `active_template_set.json` (managed by `TemplateSetManager`)
+2. **User Preferences**:
+   - Controls personal ergonomic experience (theme, accessibility motion, accessibility transparency).
+   - **Canonical Owner**: `%APPDATA%/CVSU_Generators/config/user_preferences.json` (managed exclusively by `PreferencesManager`).
+3. **Transient UI State**:
+   - Ephemeral UI or workflow state not intended to survive application restart (e.g. active wizard step, toast queues, progress bars, cancellation tokens, dialog handles) or client-side form memory (output directory, date pickers, column mappings).
+   - **Canonical Owner**: Client UI Session / DOM Memory.
+4. **Cache / Compatibility**:
+   - Temporary acceleration or legacy migration support (0ms startup paint cache in `localStorage`, migration marker flags).
+   - **Canonical Owner**: `localStorage` (governed by `theme.js` and converged from `user_preferences.json`). Must **NEVER** accidentally become a new authority.
 
 | Category | Canonical Store | Schema / Keys | Portability / Export | Reset Scope |
 |---|---|---|---|---|
 | **Application Configuration** | `%APPDATA%/CVSU_Generators/config/parser_settings.json` | `ceit_prefix_map`, `base_subject_prefixes`, `known_lab_subjects`, `program_aliases`, `roster_keywords`, `schedule_config` | Exportable via `export_parser_config()` (`cvsu_parser_config.json`) | "Reset Configuration" button resets parser only |
 | **User Preferences** | `%APPDATA%/CVSU_Generators/config/user_preferences.json` | `version` (`"1.0"`), `theme` (`"dark"` \| `"light"`), `accessibility.motion` (`"system"` \| `"reduce"` \| `"full"`), `accessibility.transparency` (`"system"` \| `"reduce"` \| `"glass"`) | Exportable via `export_user_preferences()` (`cvsu_user_preferences.json`). Strictly canonical schema. | Reset via `reset_user_preferences()`; isolated from parser; updates cache and sets `cvsu_prefs_migrated="true"` |
-| **Transient UI State** | In-Memory (DOM / JavaScript variables) | Active stepper tab, toast notifications queue, progress bar percentage, generation cancellation tokens, file picker dialog handles | Never persisted; reset on window reload/exit | Naturally discarded upon window close |
+| **Transient UI State** | In-Memory (DOM / JavaScript variables) & Client Session | Active stepper tab, toast notifications queue, progress bar percentage, generation cancellation tokens, file picker dialog handles | Never exported; reset on window reload/exit | Naturally discarded upon window close |
+| **Cache / Compatibility** | `localStorage` (`cvsu_gen_theme`, `cvsu_acc_*`, `cvsu_prefs_migrated`) | Sanitized strings (`"dark"`, `"light"`, `"system"`, `"reduce"`, `"full"`, `"glass"`, `"true"`) | Never exported; local device acceleration only | Synchronized from disk authority on `pywebviewready` or cleared on reset |
 
 ---
 
 ## 🔑 Comprehensive `localStorage` Key Inventory
 
-The application inventories all keys accessed in `localStorage`, classifying their authority, owner, and lifecycle:
+Every key accessed in `localStorage` across the frontend code (`executable_test/`) is inventoried and categorized:
 
-| Key | Classification | Owner | Canonical Authority | Upward Migration? | Reset / Clear Behavior |
-|---|---|---|---|---|---|
-| `cvsu_gen_theme` | Tier 2 Startup Cache | `theme.js` | `user_preferences.json` (`theme`) | Migrated once on initial upgrade if disk absent and `cvsu_prefs_migrated` is unset | Updated on `reset_user_preferences()` to `"dark"` |
-| `cvsu_acc_motion` | Tier 2 Startup Cache | `theme.js` | `user_preferences.json` (`accessibility.motion`) | Migrated once on initial upgrade if disk absent and `cvsu_prefs_migrated` is unset | Updated on `reset_user_preferences()` to `"system"` |
-| `cvsu_acc_transparency` | Tier 2 Startup Cache | `theme.js` | `user_preferences.json` (`accessibility.transparency`) | Migrated once on initial upgrade if disk absent and `cvsu_prefs_migrated` is unset | Updated on `reset_user_preferences()` to `"system"` |
-| `cvsu_prefs_migrated` | Migration & Reset Marker | `theme.js` / `settings.js` | N/A (Marker flag) | Set to `"true"` when initial migration finishes OR when preferences are reset | Set to `"true"` upon reset to permanently prevent resurrecting wiped preferences |
-| `cvsu_output_dir` | Transient UI Session Cache | `app.js` | Client Session | No | Cleared or overwritten on user selection |
-| `cvsu_startDate` | Transient UI Workflow State | `app.js` | Client Session | No | Cleared or overwritten on attendance date change |
-| `cvsu_endDate` | Transient UI Workflow State | `app.js` | Client Session | No | Cleared or overwritten on attendance date change |
-| `cvsu_roster_mappings` | Transient UI Cache | `app.js` | Client Session | No | Stored wizard column mappings |
-| `cvsu_parsing_rules` | Transient UI Cache | `app.js` | Client Session | No | Stored regex pattern overrides |
-| `classTypeOverrides` | Transient UI Table State | `app.js` | Client Session | No | Per-session lecture/lab overrides |
+| Key | Purpose | Classification | Canonical Owner | Read By | Written By | Reset Behavior |
+|---|---|---|---|---|---|---|
+| `cvsu_gen_theme` | 0ms startup paint acceleration cache for active theme | Cache / Compatibility | `user_preferences.json` (`theme`) | `<head>` inline boot script, `theme.js` | `theme.js` (sync/toggle) | Reset to `"dark"` on `reset_user_preferences()`; converged from disk on `pywebviewready` |
+| `cvsu_acc_motion` | 0ms startup paint acceleration cache for accessibility motion | Cache / Compatibility | `user_preferences.json` (`accessibility.motion`) | `<head>` inline boot script, `theme.js` | `theme.js`, `settings.js` | Reset to `"system"` on `reset_user_preferences()`; converged from disk on `pywebviewready` |
+| `cvsu_acc_transparency` | 0ms startup paint acceleration cache for accessibility transparency | Cache / Compatibility | `user_preferences.json` (`accessibility.transparency`) | `<head>` inline boot script, `theme.js` | `theme.js`, `settings.js` | Reset to `"system"` on `reset_user_preferences()`; converged from disk on `pywebviewready` |
+| `cvsu_prefs_migrated` | Migration and reset marker flag preventing stale cache resurrection | Cache / Compatibility | `localStorage` marker | `theme.js` | `theme.js` (on migration or reset) | Stamped to `"true"` upon reset to permanently prevent resurrecting wiped preferences |
+| `cvsu_output_dir` | Client session convenience cache for last chosen output directory | Transient UI State | Client UI Session | `state.js` | `state.js` | Overwritten on user selection; not affected by config or preference reset |
+| `cvsu_startDate` | Client workflow cache for user selected attendance start date | Transient UI State | Client UI Session | `step2.js` | `step2.js` | Cleared on `clearDatePresets()`; not affected by config or preference reset |
+| `cvsu_endDate` | Client workflow cache for user selected attendance end date | Transient UI State | Client UI Session | `step2.js` | `step2.js` | Cleared on `clearDatePresets()`; not affected by config or preference reset |
+| `cvsu_roster_mappings` | Client workflow cache for per-file CSV column mapping presets | Transient UI State | Client UI Session | `state.js` | `state.js` | Preserved across session reloads; not affected by config or preference reset |
+| `cvsu_parsing_rules` | Client workflow cache for remembering similar table parsing rules | Transient UI State | Client UI Session | `step2.js` | `step2.js` | Preserved across session reloads; not affected by config or preference reset |
+| `classTypeOverrides` | Client workflow cache for manual lecture vs lecture_lab overrides | Transient UI State | Client UI Session | `step2.js` | `step2.js` | Preserved across session reloads; not affected by config or preference reset |
+
+---
+
+## 🔒 Single-Owner Write Paths & Boundary Isolation
+
+To eliminate duplicate authorities and cross-subsystem contamination:
+
+1. **User Preferences Ownership**:
+   - `PreferencesManager` is the **sole writer** of `%APPDATA%/CVSU_Generators/config/user_preferences.json`.
+   - No frontend script, PyWebView API method, or parser component writes directly to this file.
+   - All theme and accessibility mutations flow strictly through `PreferencesManager.save_preferences()` or `PreferencesManager.update_preferences()`.
+2. **Parser Configuration Ownership**:
+   - `ParserConfigManager` is the **sole writer** of `%APPDATA%/CVSU_Generators/config/parser_settings.json`.
+   - No frontend script or preference manager writes directly to this file.
+3. **Import / Export Boundary Isolation**:
+   - `export_parser_config()` exports strictly parser configuration (prefixes, aliases, schedule rules). It contains zero theme or accessibility keys.
+   - `export_user_preferences()` exports strictly user preferences (version, theme, motion, transparency). It contains zero parser keys and zero diagnostic metadata (`_persisted`).
+   - `import_parser_config()` validates that the source JSON contains recognized parser keys. If passed a user preferences file, it rejects the import with an error status and leaves active parser settings untouched.
+   - `import_user_preferences()` validates that the source JSON contains recognized user preference keys (`theme`, `accessibility`). If passed a parser configuration file, it rejects the import with an error status and leaves active user preferences untouched (no theme change, no motion change, no transparency change).
+4. **Startup Synchronization Order**:
+   ```text
+   HTML <head>
+       ↓
+   localStorage cache (cvsu_gen_theme, cvsu_acc_*)
+       ↓
+   0ms first paint (no flash of unstyled content)
+       ↓
+   pywebviewready event (COM initialization complete)
+       ↓
+   Native disk authority (user_preferences.json via get_user_preferences)
+       ↓
+   Reconciliation (disk unconditionally wins; cache & DOM updated)
+   ```
+   At no point can stale cache overwrite or reverse canonical disk state.
+
 
 ---
 
