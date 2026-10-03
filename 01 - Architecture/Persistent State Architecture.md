@@ -314,7 +314,7 @@ Destructive operations across the application lifecycle are governed by the `DES
    - **Template Set Deletion (`TemplateSetManager.delete_template_set()`)**:
      - Deletes the entire target set directory (`template_sets/<set_id>/`) via `shutil.rmtree`.
      - **Active Set Safe Fallback**: If the deleted template set is currently active, `delete_template_set` automatically reverts the active set to the immutable built-in set (`BUILTIN_SET_ID = "builtin_cvsu"`) via `self.activate_template_set()`.
-     - **Built-in Protection**: Attempting to delete the built-in template set is strictly forbidden and raises a `ValueError`.
+     - **Built-in Protection**: Attempting to delete the built-in template set is strictly forbidden and raises a `TemplateSetError`.
      - **Isolation**: Proved by runtime tests to leave custom templates, parser configuration, user preferences, and unrelated template sets unaffected.
    - **Template Set Role Removal (`TemplateSetManager.remove_template_from_set()`)**:
      - Removes a template file from a user set via `os.remove` and re-persists the updated manifest via `_save_manifest()`.
@@ -380,7 +380,7 @@ The architecture is covered by automated regression and integration test suites:
   - `test_native_persistence_registry_self_validates_against_source`: Self-validates all registry entries, verifying module, class, method, write primitives, and exact canonical target path linkage.
   - `test_native_persistence_registry_detects_invalid_or_renamed_methods`: Validates symbol validation error detection.
   - `test_registry_path_governance_detects_falsified_methods_paths_and_modules`: Proves that intentionally falsifying writer method names, target paths, or modules causes governance failure.
-  - `test_path_matcher_rejects_parent_directory_and_cross_file_false_positives`: Proves that parent directory paths cannot satisfy file targets, sibling files are rejected, and directory/glob targets match strictly.
+  - `test_path_matcher_rejects_parent_directory_and_cross_file_false_positives`: Proves that parent directory paths cannot satisfy file targets, sibling files are rejected, directional wildcard matching is strictly enforced (expected wildcards match resolved concrete paths, resolved wildcards cannot satisfy concrete targets), and directory/glob targets match strictly.
   - `test_ast_proves_single_authoritative_writer_for_all_canonical_native_stores`: Verifies single authoritative writer module for all 6 stores.
   - `test_custom_template_writer_governance`: Verifies physical file and metadata ownership for custom templates.
   - `test_every_frontend_localstorage_key_is_classified`: Enforces complete classification of all frontend `localStorage` keys.
