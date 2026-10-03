@@ -163,9 +163,10 @@ To eliminate duplicate authorities, cross-subsystem contamination, and destructi
      - Scans all application `.html` and `.js` files recursively under `executable_test/` (excluding virtual environments `venv/`, test fixtures, and build artifacts).
      - Statically recovers string literals, bracket access, `window.localStorage.*`, and statically resolved top-level identifier constants (`const KEY = "val"`).
      - Proves 0 occurrences of `sessionStorage` or `IndexedDB` across all frontend assets.
-     - Proves single authoritative writer modules for all six canonical native stores.
+     - Proves single authoritative writer modules for all six canonical native stores across application Python files under `modules/` and `executable_test/`.
      - Self-validates registry symbols against the actual Python AST.
      - **Exact Canonical Target-Path Linkage**: For each registered writer in `NATIVE_PERSISTENCE_REGISTRY`, AST analysis extracts literal paths, `os.path.join` constructions, and class instance attributes (`self.config_file`, `self.preferences_file`, `self.active_set_file`, `self.custom_templates_index`, `self.custom_templates_dir`, `self.template_sets_dir`), verifying that the enclosing method constructs or receives the exact canonical target path.
+     - **Path Equivalence & False-Positive Elimination**: The path matcher enforces genuine target equivalence by distinguishing file targets from directory/container targets. Parent directories (e.g. `config`, `template_sets/<set_id>`, `custom_templates`) cannot satisfy file target entries (`config/parser_settings.json`, `manifest.json`, `templates.json`). Directory matching is permitted only when the registry explicitly declares a directory target (such as `template_sets/<set_id>` for `delete_template_set`).
      - **Registry Self-Consistency**: Automated regression tests intentionally falsify writer method names, target file paths, and writer modules, verifying that any discrepancy immediately causes governance test failure.
      - **Explicit Boundary**: The test verifies static source governance and cannot provide mathematical proof against arbitrary runtime dynamic writes (e.g. dynamic `eval()`, dynamic key concatenation, or binary injections).
 6. **Startup Synchronization Order**:
@@ -312,7 +313,7 @@ Destructive operations across the application lifecycle are governed by the `DES
      - **Isolation**: Proved by runtime tests to leave parser configuration, user preferences, template sets, and active template set unaffected. Deleting one custom template leaves unrelated custom templates and their physical files intact.
    - **Template Set Deletion (`TemplateSetManager.delete_template_set()`)**:
      - Deletes the entire target set directory (`template_sets/<set_id>/`) via `shutil.rmtree`.
-     - **Active Set Safe Fallback**: If the deleted template set is currently active, `delete_template_set` automatically reverts the active set to the immutable built-in set (`default_built_in`) via `self.activate_template_set()`.
+     - **Active Set Safe Fallback**: If the deleted template set is currently active, `delete_template_set` automatically reverts the active set to the immutable built-in set (`BUILTIN_SET_ID = "builtin_cvsu"`) via `self.activate_template_set()`.
      - **Built-in Protection**: Attempting to delete the built-in template set is strictly forbidden and raises a `ValueError`.
      - **Isolation**: Proved by runtime tests to leave custom templates, parser configuration, user preferences, and unrelated template sets unaffected.
    - **Template Set Role Removal (`TemplateSetManager.remove_template_from_set()`)**:
@@ -320,8 +321,8 @@ Destructive operations across the application lifecycle are governed by the `DES
      - **Isolation**: Scoped strictly to the target user set; built-in set remains immutable.
 
 2. **Static Deletion Primitive Accounting**:
-   - Static AST analysis audits every file-deletion primitive invocation (`os.remove`, `shutil.rmtree`) across the entire repository:
-     - Exactly 9 deletion calls exist in the entire codebase:
+   - Static AST analysis audits every file-deletion primitive invocation (`os.remove`, `shutil.rmtree`) across all application Python files under `modules/` and `executable_test/`:
+     - Exactly 9 deletion calls exist across all application Python files under `modules/` and `executable_test/`:
        - 3 ephemeral tempfile cleanups (`config_manager.py:L140`, `preferences_manager.py:L140`, `template_set_manager.py:L608`)
        - 2 in `config_manager.py` (`reset_to_defaults`, `delete_custom_template`)
        - 1 in `preferences_manager.py` (`reset_preferences`)
@@ -344,15 +345,15 @@ Directly runtime-tested behavior using real disk operations, isolated temporary 
 - **Manager Persistence Cycles**: Save, reload, export, and import round-trips for `ParserConfigManager`, `PreferencesManager`, and `TemplateSetManager`.
 - **Exact Byte-for-Byte Preservation**: Binary assertion that rejected imports preserve exact file bytes (`open(..., 'rb').read() == bytes_before`).
 - **Destructive Lifecycle Isolation**: Runtime tests asserting that resetting or deleting one store leaves all other five canonical stores byte-for-byte identical.
-- **Absent-Store Safety**: Runtime verification of missing-file resets, nonexistent deletion handling, and active-set fallback to built-in set.
+- **Absent-Store Safety**: Runtime verification of missing-file resets, nonexistent deletion handling, and active-set fallback to built-in set (`BUILTIN_SET_ID = "builtin_cvsu"`).
 - **Packaged Executable Persistence**: Multi-cycle cold boots of the compiled `CvSU Gen.exe` binary confirming persisted state survives Windows process termination.
 
 ### STATICALLY GOVERNED
 Path-sensitive static analysis of AST and source files:
 - **Symbol Existence**: Verification that declared modules, classes, and writer methods resolve to actual Python AST nodes.
-- **Path Linkage**: Verification that declared writer methods construct or receive the exact canonical target paths (`self.config_file`, `self.preferences_file`, `self.active_set_file`, `manifest_path`, etc.).
+- **Path Linkage & Genuine Equivalence**: Verification that declared writer methods construct or receive the exact canonical target paths (`self.config_file`, `self.preferences_file`, `self.active_set_file`, `manifest_path`, etc.). Parent directories cannot satisfy file-target entries, preventing false-positive governance passes.
 - **Registry Self-Consistency**: Negative regression tests proving that falsifying writer method names, target file paths, or module paths immediately causes governance test failure.
-- **Deletion Accounting**: Static exhaustion proving that all 9 file-deletion calls across the entire codebase are authorized lifecycle operations.
+- **Deletion Accounting**: Static exhaustion proving that all 9 file-deletion calls across all application Python files under `modules/` and `executable_test/` are authorized lifecycle operations.
 - **Frontend Storage Cleanliness**: Static AST/regex verification proving 0 occurrences of `sessionStorage` or `IndexedDB`, and exhaustive classification of all `localStorage` keys.
 - **API Delegation**: Static verification that `ScriptAPI` (`ConfigMixin`, `TemplatesMixin`) contains zero direct disk write primitives and delegates exclusively to authoritative managers.
 
@@ -361,11 +362,12 @@ Architectural design specifications and invariants:
 - **Model C Taxonomy**: Strict partitioning into Application Configuration, User Preferences, Transient UI State, Cache/Compatibility, and Diagnostic Artifacts.
 - **Complete-Document Contracts**: Pure canonical document requirements for imports vs. serialized partial merges for runtime settings.
 - **0ms Startup Cache & Reconciliation**: Fast paint cache in `localStorage` followed by unconditional disk authority convergence on `pywebviewready`.
-- **Immutability of Built-in Set**: Architectural guarantee that the factory built-in template set is immutable and undeletable.
+- **Immutability of Built-in Set**: Architectural guarantee that the factory built-in template set (`BUILTIN_SET_ID = "builtin_cvsu"`) is immutable and undeletable.
 
 ### REMAINING LIMITATIONS
 Genuine boundaries and constraints of the current system:
 - **Static Analysis Boundary**: Static path-sensitive persistence governance analyzes AST and syntax structures; it does not claim mathematical proof against dynamic arbitrary execution (such as `eval()`, dynamic attribute patching, or binary injection).
+- **Frontend Dynamic-Key Boundary**: Static scanning of frontend `localStorage` recovers string literals, bracket notations, and top-level declared identifier constants; it cannot resolve arbitrary runtime JavaScript dynamic string concatenation or expressions (e.g. `localStorage.getItem("key_" + dynamicVar)`).
 - **Concurrency & Process Boundary**: Concurrency safety is scoped to in-process serialization via `threading.RLock()` and filesystem atomic replacement (`tempfile.mkstemp` + `os.replace`). The architecture does not implement cross-process locking or distributed consensus; simultaneous concurrent writes by multiple independent operating system processes remain outside current serialization guarantees.
 
 ---
@@ -378,6 +380,7 @@ The architecture is covered by automated regression and integration test suites:
   - `test_native_persistence_registry_self_validates_against_source`: Self-validates all registry entries, verifying module, class, method, write primitives, and exact canonical target path linkage.
   - `test_native_persistence_registry_detects_invalid_or_renamed_methods`: Validates symbol validation error detection.
   - `test_registry_path_governance_detects_falsified_methods_paths_and_modules`: Proves that intentionally falsifying writer method names, target paths, or modules causes governance failure.
+  - `test_path_matcher_rejects_parent_directory_and_cross_file_false_positives`: Proves that parent directory paths cannot satisfy file targets, sibling files are rejected, and directory/glob targets match strictly.
   - `test_ast_proves_single_authoritative_writer_for_all_canonical_native_stores`: Verifies single authoritative writer module for all 6 stores.
   - `test_custom_template_writer_governance`: Verifies physical file and metadata ownership for custom templates.
   - `test_every_frontend_localstorage_key_is_classified`: Enforces complete classification of all frontend `localStorage` keys.
@@ -388,7 +391,7 @@ The architecture is covered by automated regression and integration test suites:
   - `test_rejected_imports_preserve_exact_canonical_file_bytes_and_state`: Verifies byte-for-byte file preservation on rejected imports.
   - `test_rejected_import_does_not_create_missing_canonical_file`: Verifies absent stores remain absent on rejected import.
   - `test_native_persistence_registry_classifications_and_path_separation`: Verifies path disjointness across all canonical stores.
-  - `test_destructive_lifecycle_governance_static_ast`: Audits all destructive operations and accounts for all 9 deletion primitives across codebase.
+  - `test_destructive_lifecycle_governance_static_ast`: Audits all destructive operations and accounts for all 9 deletion primitives across application Python files under `modules/` and `executable_test/`.
   - `test_destructive_lifecycle_runtime_isolation`: Proves cross-subsystem isolation and exact byte preservation during reset and delete operations.
   - `test_absent_store_destructive_safety_and_edge_cases`: Verifies absent store resets, nonexistent deletion handling, and active-set fallback.
 - `tests/test_user_preferences_architecture.py`:
