@@ -158,13 +158,15 @@ To eliminate duplicate authorities, cross-subsystem contamination, and destructi
      - Cross-domain imports (e.g. importing preferences into parser manager or parser config into preferences manager) are rejected cleanly with an error status.
      - **Exact Byte-for-Byte Preservation**: Automated tests prove that rejected imports preserve exact file bytes (`open(..., 'rb').read() == bytes_before`) as well as in-memory semantic state. If the canonical file does not exist on disk initially, a rejected import creates zero new files.
      - **Startup Safe Fallback vs. Explicit Import Rejection**: While startup initialization safely recovers a corrupt or unsupported disk file to canonical defaults to guarantee visual launch stability, explicit user file imports NEVER silently convert an unsupported file into defaults or mutate the active store.
-5. **Static Persistent-State Governance Scope & Limits**:
-   - The test suite (`tests/test_persistent_state_authority_inventory.py`) performs static source governance via AST and regex scanning:
+5. **Static Path-Sensitive Persistence Governance & Path Linkage**:
+   - The test suite (`tests/test_persistent_state_authority_inventory.py`) performs static path-sensitive persistence governance via AST and source inspection:
      - Scans all application `.html` and `.js` files recursively under `executable_test/` (excluding virtual environments `venv/`, test fixtures, and build artifacts).
      - Statically recovers string literals, bracket access, `window.localStorage.*`, and statically resolved top-level identifier constants (`const KEY = "val"`).
      - Proves 0 occurrences of `sessionStorage` or `IndexedDB` across all frontend assets.
      - Proves single authoritative writer modules for all six canonical native stores.
      - Self-validates registry symbols against the actual Python AST.
+     - **Exact Canonical Target-Path Linkage**: For each registered writer in `NATIVE_PERSISTENCE_REGISTRY`, AST analysis extracts literal paths, `os.path.join` constructions, and class instance attributes (`self.config_file`, `self.preferences_file`, `self.active_set_file`, `self.custom_templates_index`, `self.custom_templates_dir`, `self.template_sets_dir`), verifying that the enclosing method constructs or receives the exact canonical target path.
+     - **Registry Self-Consistency**: Automated regression tests intentionally falsify writer method names, target file paths, and writer modules, verifying that any discrepancy immediately causes governance test failure.
      - **Explicit Boundary**: The test verifies static source governance and cannot provide mathematical proof against arbitrary runtime dynamic writes (e.g. dynamic `eval()`, dynamic key concatenation, or binary injections).
 6. **Startup Synchronization Order**:
    ```text
@@ -281,7 +283,7 @@ Both `ParserConfigManager` and `PreferencesManager` implement rigorous defensive
    - Concurrency guarantees are **explicitly scoped to in-process manager serialization plus atomic file replacement**.
    - `PreferencesManager` serializes all partial updates, reads, and in-memory cache synchronizations using a process-local reentrant lock (`threading.RLock()`).
    - Atomic disk replacement (`tempfile.mkstemp` + `os.replace`) ensures filesystem write integrity against abrupt termination.
-   - The application does not implement cross-process file locks or distributed mutexes; if an external process modifies `user_preferences.json`, filesystem integrity relies on OS-level atomic replace semantics.
+   - The application does not implement cross-process file locks or distributed mutexes; if an external process modifies `user_preferences.json`, filesystem integrity relies on OS-level atomic replace semantics. Multi-process simultaneous writes remain outside the current serialization guarantee.
    - The initialization/read path in `get_preferences()` is clean and explicit: if `_cached_preferences is None`, it initializes under lock via `_load_under_lock()`, and returns an independent defensive copy (`deepcopy(self._cached_preferences)`) without no-op locking blocks.
    - Callback listeners are dispatched strictly outside the lock to prevent deadlocks with foreign subscriber logic.
 5. **Preference Listeners Contract**:
@@ -291,19 +293,80 @@ Both `ParserConfigManager` and `PreferencesManager` implement rigorous defensive
 
 ---
 
-## 🔄 Reset Semantics & Resurrection Prevention
+## 🔄 Destructive Lifecycle Governance & Reset/Delete Isolation
 
-To prevent accidental erasure of user ergonomic accommodations and prevent resurrecting deleted preferences:
+Destructive operations across the application lifecycle are governed by the `DESTRUCTIVE_LIFECYCLE_REGISTRY` in `tests/test_persistent_state_authority_inventory.py` and subjected to runtime lifecycle tests:
 
-1. **Reset Configuration (`reset_parser_config()`)**:
-   - Scoped strictly to curriculum rules, department maps, subject prefixes, lab codes, and schedule presets.
-   - Restores `parser_settings.json` to factory defaults.
-   - **Does NOT** alter `theme`, `motion`, or `transparency` user preferences or touch `user_preferences.json`.
-2. **Reset User Preferences (`reset_user_preferences()`)**:
-   - Scoped strictly to theme and accessibility settings.
-   - Removes `user_preferences.json` and resets cached preferences to factory defaults (`theme: "dark"`, `motion: "system"`, `transparency: "system"`).
-   - **Resurrection Prevention**: The reset lifecycle executes `window.applyUserPreferencesReset()` in the WebView, resetting the DOM attributes, clearing cached theme/accessibility in `localStorage`, and explicitly setting `cvsu_prefs_migrated = "true"`. This prevents legacy migration logic from ever resurrecting wiped preferences on subsequent cold restarts.
-   - **Does NOT** alter custom course codes, prefix mappings, or template definitions in `parser_settings.json`.
+1. **Destructive Operations Inventory & Owners**:
+   - **Parser Configuration Reset (`ParserConfigManager.reset_to_defaults()`)**:
+     - Scoped strictly to curriculum parsing rules, department maps, subject prefixes, and lab codes.
+     - Removes `config/parser_settings.json` via `os.remove` if present, reloads in-memory defaults, and re-persists factory configuration.
+     - **Isolation**: Proved by runtime tests to leave `config/user_preferences.json`, custom templates, template sets, active template set, and logs byte-for-byte identical.
+   - **User Preferences Reset (`PreferencesManager.reset_preferences()`)**:
+     - Scoped strictly to personal theme and accessibility settings.
+     - Removes `config/user_preferences.json` via `os.remove` if present and resets cached preferences to factory defaults (`theme: "dark"`, `motion: "system"`, `transparency: "system"`).
+     - **Resurrection Prevention**: The reset lifecycle executes `window.applyUserPreferencesReset()` in the WebView, resetting the DOM attributes, clearing cached theme/accessibility in `localStorage`, and explicitly setting `cvsu_prefs_migrated = "true"`. This prevents legacy migration logic from resurrecting wiped preferences on cold restarts.
+     - **Isolation**: Proved by runtime tests to leave `config/parser_settings.json`, custom templates, template sets, active template set, and logs byte-for-byte identical.
+   - **Custom Template Deletion (`ParserConfigManager.delete_custom_template()`)**:
+     - Deletes the specific physical `.docx` template file from `custom_templates/` via `os.remove` and updates `custom_templates/templates.json` via atomic `tempfile.NamedTemporaryFile` + `os.replace`.
+     - **Isolation**: Proved by runtime tests to leave parser configuration, user preferences, template sets, and active template set unaffected. Deleting one custom template leaves unrelated custom templates and their physical files intact.
+   - **Template Set Deletion (`TemplateSetManager.delete_template_set()`)**:
+     - Deletes the entire target set directory (`template_sets/<set_id>/`) via `shutil.rmtree`.
+     - **Active Set Safe Fallback**: If the deleted template set is currently active, `delete_template_set` automatically reverts the active set to the immutable built-in set (`default_built_in`) via `self.activate_template_set()`.
+     - **Built-in Protection**: Attempting to delete the built-in template set is strictly forbidden and raises a `ValueError`.
+     - **Isolation**: Proved by runtime tests to leave custom templates, parser configuration, user preferences, and unrelated template sets unaffected.
+   - **Template Set Role Removal (`TemplateSetManager.remove_template_from_set()`)**:
+     - Removes a template file from a user set via `os.remove` and re-persists the updated manifest via `_save_manifest()`.
+     - **Isolation**: Scoped strictly to the target user set; built-in set remains immutable.
+
+2. **Static Deletion Primitive Accounting**:
+   - Static AST analysis audits every file-deletion primitive invocation (`os.remove`, `shutil.rmtree`) across the entire repository:
+     - Exactly 9 deletion calls exist in the entire codebase:
+       - 3 ephemeral tempfile cleanups (`config_manager.py:L140`, `preferences_manager.py:L140`, `template_set_manager.py:L608`)
+       - 2 in `config_manager.py` (`reset_to_defaults`, `delete_custom_template`)
+       - 1 in `preferences_manager.py` (`reset_preferences`)
+       - 3 in `template_set_manager.py` (`delete_template_set`, `remove_template_from_set`, and temporary zip extraction cleanup)
+     - Exactly zero unauthorized or unmanaged filesystem deletion calls exist.
+
+3. **Absent-Store Destructive Safety & Edge Cases**:
+   - **Absent File Resets**: Calling `reset_to_defaults()` or `reset_preferences()` when the target file does not physically exist on disk completes safely without raising errors, leaving absent stores absent (or re-creating only the canonical store if intended by the method contract).
+   - **Absent File Deletion**: Attempting to delete a nonexistent custom template or template set returns clean failure without damaging any store.
+   - **Rejected Imports**: Malformed or unversioned imported configuration packages are rejected cleanly, preserving exact byte-for-byte fidelity of existing files and creating zero phantom files when files are initially absent.
+
+---
+
+## ⚖️ Governance Model & Verification Matrix
+
+The persistence architecture maintains explicit separation between four categories of assurance:
+
+### VERIFIED
+Directly runtime-tested behavior using real disk operations, isolated temporary environments, and end-to-end cycles:
+- **Manager Persistence Cycles**: Save, reload, export, and import round-trips for `ParserConfigManager`, `PreferencesManager`, and `TemplateSetManager`.
+- **Exact Byte-for-Byte Preservation**: Binary assertion that rejected imports preserve exact file bytes (`open(..., 'rb').read() == bytes_before`).
+- **Destructive Lifecycle Isolation**: Runtime tests asserting that resetting or deleting one store leaves all other five canonical stores byte-for-byte identical.
+- **Absent-Store Safety**: Runtime verification of missing-file resets, nonexistent deletion handling, and active-set fallback to built-in set.
+- **Packaged Executable Persistence**: Multi-cycle cold boots of the compiled `CvSU Gen.exe` binary confirming persisted state survives Windows process termination.
+
+### STATICALLY GOVERNED
+Path-sensitive static analysis of AST and source files:
+- **Symbol Existence**: Verification that declared modules, classes, and writer methods resolve to actual Python AST nodes.
+- **Path Linkage**: Verification that declared writer methods construct or receive the exact canonical target paths (`self.config_file`, `self.preferences_file`, `self.active_set_file`, `manifest_path`, etc.).
+- **Registry Self-Consistency**: Negative regression tests proving that falsifying writer method names, target file paths, or module paths immediately causes governance test failure.
+- **Deletion Accounting**: Static exhaustion proving that all 9 file-deletion calls across the entire codebase are authorized lifecycle operations.
+- **Frontend Storage Cleanliness**: Static AST/regex verification proving 0 occurrences of `sessionStorage` or `IndexedDB`, and exhaustive classification of all `localStorage` keys.
+- **API Delegation**: Static verification that `ScriptAPI` (`ConfigMixin`, `TemplatesMixin`) contains zero direct disk write primitives and delegates exclusively to authoritative managers.
+
+### DOCUMENTED
+Architectural design specifications and invariants:
+- **Model C Taxonomy**: Strict partitioning into Application Configuration, User Preferences, Transient UI State, Cache/Compatibility, and Diagnostic Artifacts.
+- **Complete-Document Contracts**: Pure canonical document requirements for imports vs. serialized partial merges for runtime settings.
+- **0ms Startup Cache & Reconciliation**: Fast paint cache in `localStorage` followed by unconditional disk authority convergence on `pywebviewready`.
+- **Immutability of Built-in Set**: Architectural guarantee that the factory built-in template set is immutable and undeletable.
+
+### REMAINING LIMITATIONS
+Genuine boundaries and constraints of the current system:
+- **Static Analysis Boundary**: Static path-sensitive persistence governance analyzes AST and syntax structures; it does not claim mathematical proof against dynamic arbitrary execution (such as `eval()`, dynamic attribute patching, or binary injection).
+- **Concurrency & Process Boundary**: Concurrency safety is scoped to in-process serialization via `threading.RLock()` and filesystem atomic replacement (`tempfile.mkstemp` + `os.replace`). The architecture does not implement cross-process locking or distributed consensus; simultaneous concurrent writes by multiple independent operating system processes remain outside current serialization guarantees.
 
 ---
 
@@ -311,6 +374,23 @@ To prevent accidental erasure of user ergonomic accommodations and prevent resur
 
 The architecture is covered by automated regression and integration test suites:
 
+- `tests/test_persistent_state_authority_inventory.py`:
+  - `test_native_persistence_registry_self_validates_against_source`: Self-validates all registry entries, verifying module, class, method, write primitives, and exact canonical target path linkage.
+  - `test_native_persistence_registry_detects_invalid_or_renamed_methods`: Validates symbol validation error detection.
+  - `test_registry_path_governance_detects_falsified_methods_paths_and_modules`: Proves that intentionally falsifying writer method names, target paths, or modules causes governance failure.
+  - `test_ast_proves_single_authoritative_writer_for_all_canonical_native_stores`: Verifies single authoritative writer module for all 6 stores.
+  - `test_custom_template_writer_governance`: Verifies physical file and metadata ownership for custom templates.
+  - `test_every_frontend_localstorage_key_is_classified`: Enforces complete classification of all frontend `localStorage` keys.
+  - `test_no_browser_sessionstorage_or_indexeddb_used`: Proves 0 occurrences of `sessionStorage` or `IndexedDB`.
+  - `test_script_api_method_delegation_to_authoritative_managers`: Proves PyWebView API delegates mutations to managers.
+  - `test_ast_proves_no_direct_file_writes_in_script_api`: Proves API bridge contains zero direct filesystem write primitives.
+  - `test_complete_export_import_roundtrip_succeeds`: Verifies complete export/import lifecycle.
+  - `test_rejected_imports_preserve_exact_canonical_file_bytes_and_state`: Verifies byte-for-byte file preservation on rejected imports.
+  - `test_rejected_import_does_not_create_missing_canonical_file`: Verifies absent stores remain absent on rejected import.
+  - `test_native_persistence_registry_classifications_and_path_separation`: Verifies path disjointness across all canonical stores.
+  - `test_destructive_lifecycle_governance_static_ast`: Audits all destructive operations and accounts for all 9 deletion primitives across codebase.
+  - `test_destructive_lifecycle_runtime_isolation`: Proves cross-subsystem isolation and exact byte preservation during reset and delete operations.
+  - `test_absent_store_destructive_safety_and_edge_cases`: Verifies absent store resets, nonexistent deletion handling, and active-set fallback.
 - `tests/test_user_preferences_architecture.py`:
   - `test_preferences_manager_defaults`: Verifies canonical default schema.
   - `test_preferences_manager_save_and_reload`: Verifies atomic disk writes and schema retention.
