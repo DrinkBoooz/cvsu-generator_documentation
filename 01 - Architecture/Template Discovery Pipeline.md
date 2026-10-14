@@ -7,8 +7,10 @@ tags:
   - discovery
   - recipes
 status: active
-last_modified: 2026-09-20
+last_modified: 2026-10-15
 source_of_truth:
+  - modules/parsers/docx_grid_table.py
+  - modules/parsers/template_analyzer.py
   - modules/parsers/semantic_registry.py
   - modules/models/recipe.py
   - modules/parsers/recipe_validator.py
@@ -277,3 +279,31 @@ The authoritative binding status across all generator engines:
 | **`GradeDiscussionGenerator`** | Academic DOCX (`Midterm-Grade-Discussion_LATEST.docx`, `Final-Grade-Discussion_LATEST.docx`) | `DocumentGenerator` base class via `ValidatedTemplateRecipe` | **Yes** | None (Obsolete heuristics eliminated) | `recipe.header_bindings`, `recipe.roster_binding` | **Migrated** | `test_template_mutations.py::test_m5_grade_discussion_2col_layout`, `test_ast_rules.py` |
 | **`GradeGenerator`** | Grading Sheet XLSX (`GRADING_LECTURE_TEMPLATE.xlsx`, `GRADING_LECTURE_LAB_TEMPLATE.xlsx`) | Dynamic Openpyxl cell binding via `ValidatedTemplateRecipe` | **Yes** | None (Zero hardcoded coordinates) | `recipe.header_bindings` (cells), `recipe.roster_binding` (worksheet, start row, cols, capacity), `recipe.signature_bindings` (structural boxes) | **Migrated** | `test_template_mutations.py::test_m6`, `test_m7`, `test_m8`, `test_m9`, `test_m10`, `test_grade_generator.py` |
 | **`AttendanceGenerator` (`build_attendance_sheet`)** | Attendance DOCX (`template lec.docx`, `template lab and lec.docx`) | Dynamic XML table and column binding via `ValidatedAttendanceTemplateRecipe` | **Yes** | None (Zero hardcoded `tables[0]`/`tables[1]`, dynamic info bindings, dynamic matrix column discovery, dynamic prototype student row) | `recipe.info_binding`, `recipe.matrix_binding` | **Migrated (Complete)** | `test_template_mutations.py::test_m11`..`test_m20`, `test_invalid_templates.py::test_e11`..`test_e18`, `test_ast_rules.py` |
+
+---
+
+## 🔬 OpenXML Grid Normalization (`DocxGridTable`) & Deterministic Template Analyzer
+
+Phase 2 of the Static-to-Dynamic migration introduces two decoupled foundational engines in `modules/parsers/`:
+
+### 1. Low-Level Grid Normalizer: `DocxGridTable` (`modules/parsers/docx_grid_table.py`)
+
+Standard `python-docx` and raw OpenXML parsing suffer from the **merged-cell coordinate trap**:
+- Horizontal spans (`<w:gridSpan w:val="N"/>`) reduce the physical child count of `<w:tr>`, causing physical cell indices `cells[c]` to diverge across rows.
+- Vertical continuations (`<w:vMerge/>`) duplicate cell proxy references or hide physical XML cells, leading to silent duplicate text mutations when generators populate sequential rows.
+
+`DocxGridTable` eliminates this trap by constructing a 2D rectangular visual matrix:
+- **Canonical Cell Mapping**: Every visual coordinate `(row, col)` maps to a `DocxGridCell`. If a cell is part of a horizontal or vertical merge, `is_origin` is `False`, and `get_canonical_cell(row, col)` resolves to the top-left origin `<w:tc>`.
+- **Topological Navigation**:
+  - `adjacent_right(row, col)`: Computes `origin_col + col_span` to jump cleanly over horizontal spans to the next true visual column.
+  - `adjacent_below(row, col)`: Computes `origin_row + row_span` to jump cleanly over vertical merges to the next true visual row.
+  - `target_value_cell_right(row, col)`: Introspects separator columns; if the adjacent cell is a colon (`:`), it automatically targets the cell to the right of the colon.
+- **Mutation Safety**: `set_cell_text(row, col, text, ...)` mutates only the canonical origin `<w:tc>` element and maintains a mutation registry `_mutated_cells` to prevent accidental duplicate writes across continuation views.
+
+### 2. High-Level Engine: `DeterministicTemplateAnalyzer` (`modules/parsers/template_analyzer.py`)
+
+A pure offline, deterministic template introspection engine that extracts a structured `TemplateManifest` in under 20ms:
+- **Zero AI / Zero Internet Dependency**: Operates strictly via deterministic OpenXML stream inspection and regex dictionaries.
+- **Dynamic Semantic Slots**: Automatically detects metadata labels (Instructor, Course/Section, Schedule Code, Subject, Time/Days/Room, Semester/AY, Month/Year, Date) and resolves their target coordinates via `DocxGridTable`.
+- **Dynamic Repeating Topologies**: Automatically discovers repeating tables (student rosters, attendance grids, exam returns), detecting exact header row bounds (e.g. multi-row headers created by vertical merges), first data row index, cloneable template row, capacity limit, and column roles (`name`, `student_number`, `index`, `signature`).
+- **SHA-256 Fingerprint**: Computes a deterministic content hash for high-performance manifest caching.
