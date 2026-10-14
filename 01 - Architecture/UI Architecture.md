@@ -6,7 +6,7 @@ tags:
   - ui
   - accessibility
 status: active
-last_modified: 2026-10-02
+last_modified: 2026-10-15
 source_of_truth:
   - executable_test/ui.html
   - executable_test/css/base.css
@@ -18,6 +18,8 @@ source_of_truth:
   - executable_test/js/theme.js
   - executable_test/js/stepper.js
   - executable_test/js/toast.js
+  - executable_test/js/templates.js
+  - executable_test/js/bridge.js
   - executable_test/js/bridge.js
   - executable_test/js/drawers.js
   - executable_test/js/modal.js
@@ -450,12 +452,37 @@ This guarantees that when reduced motion is effective (either via Windows Animat
 
 ---
 
-### Zero Runaway Transitions
+---
 
-All DOM CSS transitions are suppressed during the VT via `.theme-transitioning * { transition: none !important }`, preventing cascade storms.
-- Measurement window is strictly bounded to the VT lifecycle: `[click] → [transition.finished + double-rAF cleanup]`.
-- Because `spin-morph` is an `@keyframes` animation and WAAPI does not fire DOM `transitionstart` events, the event count is **deterministically 0**.
-- Automated performance testing verifies 0 runaway events across 5 consecutive back-and-forth toggles without flakiness.
+## 🧩 Adaptive TemplateManifest UI Binding & WCAG Accessibility Hardening
+
+Phase 4 connected `DeterministicTemplateAnalyzer` and `TemplateManifest` directly to the custom template configuration interface in `executable_test/ui.html` and `executable_test/js/templates.js`.
+
+### 1. Semantic DOM Structure & ARIA Semantics
+- **Inspection Result Container (`#customTemplateResultCard`)**:
+  - `role="region"`
+  - `aria-live="polite"`
+  - `aria-labelledby="customTemplateResultCardHeading"`
+- **Heading**: `#customTemplateResultCardHeading` provides the accessible landmark label.
+- **Compatibility Status (`#customCompatibilityBadge`)**:
+  - `role="status"`
+  - `aria-label="Template Compatibility Status"`
+  - Displays dynamic state: `✓ Ready` (`var(--accent-emerald)`) or `⚠️ Incomplete` (`var(--accent-amber)`).
+- **Actionable Diagnostics Region (`#customTemplateDiagnostics`)**:
+  - `role="status" aria-live="polite"`
+  - Automatically unhides when `manifest_summary.diagnostics` are present to inform the user of detected capabilities and missing slots.
+
+### 2. Form Input Labeling & Assistive Tech Accessibility
+- `#customFormTitle`: Bound with `aria-label="Form Display Title"` and `aria-required="false"`.
+- `#customFormSuffix`: Bound with `aria-label="File Suffix (Upper snake-case)"` and `aria-required="true"`.
+- `#customFormTargetFolderSelect`: Bound with `aria-label="Target Folder"`.
+- `#customFormCustomFolderInput`: Bound with `aria-label="Custom Relative Subfolder"`.
+
+### 3. Screen Reader Announcements & Keyboard Focus Management
+- **Analysis Completion Announcement**: `window.announceA11y(...)` announces template analysis results, indicating whether the template is verified and ready or diagnostics are available.
+- **Focus Shift**: Automatically focuses `#customFormTitle` upon inspection result rendering, enabling immediate keyboard editing without tabbing through prior elements.
+- **Preview Discard / Cancellation**: Dismissing the card (`cancelCustomTemplatePreview()`) returns focus directly to `#templateDropzone` and broadcasts an accessible confirmation via `announceA11y`.
+
 
 
 

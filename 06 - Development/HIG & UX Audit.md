@@ -7,7 +7,7 @@ tags:
   - accessibility
   - design
 status: active
-last_modified: 2026-09-14
+last_modified: 2026-10-15
 source_of_truth:
   - executable_test/ui.html
   - executable_test/css/
@@ -108,6 +108,7 @@ Every substantive assessment references current official Apple Developer documen
 | **Color & Visual States** | Tailored HSL palette; light and dark modes; non-color indicators (icons, badges, text labels, borders, opacity) across tested workflow states; `@media (forced-colors: active)` in CSS. | *Color* & *Dark Mode* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/color)) | HIG-relevant cross-platform principle | **Aligned** | Source (`tokens.css`, `base.css`, `components.css`) + Visual | High |
 | **Window Anatomy & Chrome** | Single-window utility layout with top header; absence of traditional desktop menu bar or keyboard shortcut accelerators for drawer access. | *Windows* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/windows)) | Windows-native / Webview context | **Platform-Appropriate / Partially Aligned** | Source (`ui.html`) + Visual | Medium |
 | **macOS System Menu Bar** | No global top menu bar. | *The menu bar* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/the-menu-bar)) | Apple-specific platform convention | **Not Applicable** | Platform Architecture (Windows WebView2 runtime) | High |
+| **Template Manifest & Custom Inspection** | Dynamic analysis feedback via `#customTemplateResultCard` (`role="region"`), `#customCompatibilityBadge` status, `#customTemplateDiagnostics` live region, and keyboard focus routing. | *Feedback* & *Accessibility* ([Apple HIG](https://developer.apple.com/design/human-interface-guidelines/feedback)) | HIG-relevant cross-platform principle | **Aligned** | Source (`ui.html`, `templates.js`) + Runtime (`test_ui_accessibility.py`) | High |
 
 ---
 

@@ -128,11 +128,20 @@ Utility functions: `sanitize_filename(filename)`, `get_resource_path(relative_pa
 |---|---|
 | `browse_custom_template()` | Opens `.docx` file picker; calls `inspect_custom_template` |
 | `handle_dropped_custom_template(filename, original_path)` | Validates native path; calls `inspect_custom_template` |
-| `inspect_custom_template(file_path)` | Runs `TemplateInspector.inspect_docx(file_path)`; returns `{status, file_path, recipe}` |
+| `inspect_custom_template(file_path)` | Validates safe path, checks extension (`.docx`/`.xlsx`), runs `DeterministicTemplateAnalyzer` with thread-safe SHA-256/mtime caching and `TemplateInspector`; returns `{status, file_path, recipe, manifest, manifest_summary}` |
+| `inspect_template_set_files(file_paths)` | Runs `TemplateRoleDetector` and enriches physical inspections with `DeterministicTemplateAnalyzer` manifest summaries |
 | `save_custom_template(file_path, title, suffix, recipe)` | Saves template + recipe via `config_manager.save_custom_template` |
 | `get_custom_templates()` | Returns list of registered custom templates |
 | `toggle_custom_template(template_id, enabled)` | Enables or disables a custom template |
 | `delete_custom_template(template_id)` | Removes registration and deletes the file |
+
+### Dynamic Template Manifest & SHA-256 Caching Pipeline
+
+Custom template inspection connects the frontend to `DeterministicTemplateAnalyzer`:
+1. **Thread-Safe Caching**: Templates are fingerprinted via SHA-256 and indexed by `(abs_path, mtime, size)`. Subsequent inspections of unchanged files bypass XML parsing in < 1ms.
+2. **Payload Enrichment**: Returns `manifest_summary` containing `is_ready` status, detected `slots` (field names, types, targets), `roster_table` topology (capacity, first data row, columns), and actionable `diagnostics`.
+3. **Execution Routing**: Custom templates registered through the bridge are executed dynamically via `DynamicDocumentRenderer` with automatic font scaling ladders and bullet preservation.
+
 
 ---
 
