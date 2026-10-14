@@ -153,9 +153,9 @@ Validates the accessibility settings architecture across UI markup, CSS tokens, 
 - **Dynamic Media-Query Listener**: Emulates runtime changes from `no-preference` to `reduce` while the app is running to confirm `data-acc-motion` updates without page refresh.
 - **Multi-Viewport Responsive Verification**: Parametrized Playwright tests across `880×640`, `1120×780`, `768×600`, and `375×667` verify zero horizontal overflow (`scrollWidth <= clientWidth`) and ensure select controls remain fully visible and usable.
 - **Packaged Diagnostic Telemetry**: `tests/test_packaged_executable_theme_diag.py` asserts top-level diagnostic telemetry distinguishes `storedMotionPreference`, `effectiveMotionPreference`, `storedTransparencyPreference`, `effectiveTransparencyPreference`, `systemReducedMotion`, and `systemReducedTransparency`.
-### 12. Golden-Master Verification & Structural Parity Testing (	ests/test_golden_parity.py)
-Validates generated Word (.docx) and Attendance documents against preserved golden-master fixtures in 	ests/fixtures/golden_outputs/:
-- **Low-Level OpenXML Topology**: Inspects <w:tbl>, <w:tr>, <w:tc>, and <w:numPr> cell matrices and verifies row/column parity.
-- **Document & Header Story Streams**: Validates paragraphs across body and header stories (word/header*.xml), ensuring institutional metadata, instructor identity, and course details are populated.
-- **Deterministic Golden-Master Comparison**: Verifies that newly generated CEIT forms and month-by-month attendance sheets match the exact structural schema and student rows of 	ests/fixtures/golden_outputs/.
-- **Placeholder Hygiene**: Programmatically asserts that no raw template tags (e.g., <INSTRUCTOR>, {{TAG}}) remain unpopulated.
+### 12. Golden-Master Verification & Structural Parity Testing (`tests/test_golden_parity.py`)
+Validates generated Word (.docx) and Attendance documents against preserved golden-master fixtures in `tests/fixtures/golden_outputs/`:
+- **Low-Level OpenXML Topology**: Inspects `<w:tbl>`, `<w:tr>`, `<w:tc>`, and `<w:numPr>` cell matrices and verifies row/column parity.
+- **Document & Header Story Streams**: Validates paragraphs across body and header stories (`word/header*.xml`), ensuring institutional metadata, instructor identity, and course details are populated.
+- **Deterministic Golden-Master Comparison**: Verifies that newly generated CEIT forms and month-by-month attendance sheets match the exact structural schema and student rows of `tests/fixtures/golden_outputs/`.
+- **Placeholder Hygiene**: Programmatically asserts that no raw template tags (e.g., `<INSTRUCTOR>`, `{{TAG}}`) remain unpopulated.
