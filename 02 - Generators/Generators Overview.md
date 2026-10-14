@@ -6,9 +6,12 @@ tags:
   - overview
   - comparison-matrix
 status: active
-last_modified: 2026-09-15
+last_modified: 2026-10-15
 source_of_truth:
   - modules/generators/
+  - modules/generators/dynamic_renderer.py
+  - modules/parsers/template_analyzer.py
+  - modules/parsers/docx_grid.py
   - modules/services/orchestrator.py
   - modules/services/template_recipe_service.py
   - modules/parsers/recipe_validator.py
@@ -62,6 +65,27 @@ Generated output
 2. **Validator Sole Authority**: `RecipeValidator.validate()` is the sole entry point permitted to construct `ValidatedTemplateRecipe` (guarded by `_PRIVATE_CONSTRUCTION_SENTINEL` and Schema Version 2).
 3. **Resolution & Caching**: `TemplateRecipeResolver` maintains a 3-tuple cached index `(abs_path, profile_id, sha256_fingerprint)`. When a template changes on disk, the SHA-256 fingerprint mismatch triggers automatic invalidation and fresh inspection/validation.
 4. **Pure Recipe Execution**: `DocumentGenerator` and `GradeGenerator` consume `ValidatedTemplateRecipe` instances exclusively and execute without positional or coordinate heuristics.
+
+---
+
+## ⚡ Dynamic Coordinate Resolution & Unified Rendering Engine (`DynamicDocumentRenderer`)
+
+Starting in Phase 3, document generation employs `DeterministicTemplateAnalyzer` and `DocxGridTable` to decouple template population from brittle positional indices:
+
+- **Dynamic Coordinate Resolution**: Rather than hardcoding metadata cell `(r, c)` coordinates or assuming roster tables are always at fixed indices (e.g. `tables[1]`), `DocumentGenerator` and `AttendanceGenerator` use `DeterministicTemplateAnalyzer.analyze_docx_tree()` to dynamically locate:
+  - Header metadata tables and slot targets (`cell_right`, `cell_below`, `colon_value`).
+  - Student roster repeating tables via trigger keywords (`student_name`, `student_number`, `index`).
+  - Attendance date matrix grids and student name rows.
+- **Unified Engine (`DynamicDocumentRenderer`)**:
+  - Encapsulates dynamic slot resolution, paragraph token replacement, and repeating table population in `modules/generators/dynamic_renderer.py`.
+  - Preserves OpenXML run formatting (`<w:rPr>`), paragraph styles (`<w:pPr>`), bolding, fonts, and cell shading.
+  - Applies institutional font scaling ladders for student names (`<=30` -> 8pt, `31-35` -> 7pt, `>35` -> 6pt).
+  - Preserves native `<w:numPr>` list auto-numbering in index columns.
+  - Safely clears unused capacity rows and clones template rows for overflow rosters.
+- **Perturbation Resilience**:
+  - Fully resilient against structural template mutations, such as prepending administrative decoy tables, warning banners, or shifting table order.
+  - Validated by `tests/test_dynamic_renderer_resilience.py` while proving 100% golden-master parity on standard templates (`tests/test_golden_parity.py`).
+
 
 ---
 

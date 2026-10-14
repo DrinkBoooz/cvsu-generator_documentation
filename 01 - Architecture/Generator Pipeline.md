@@ -6,8 +6,11 @@ tags:
   - pipeline
   - parsers
 status: active
-last_modified: 2026-09-15
+last_modified: 2026-10-15
 source_of_truth:
+  - modules/generators/dynamic_renderer.py
+  - modules/parsers/template_analyzer.py
+  - modules/parsers/docx_grid.py
   - modules/parsers/schedule_parser.py
   - modules/parsers/roster_parser.py
   - modules/services/validator.py
@@ -91,3 +94,29 @@ graph TD
 - **CEIT & Custom Forms**: `GeneratorFactory` queries `TemplateRecipeResolver.get_instance()` to obtain `ValidatedTemplateRecipe` instances, rendering 7 native forms plus custom configurable documents to `<Output>/<Course_Sec>/CEIT_Forms/`.
 - **Attendance Sheets**: `generate_attendance_for_month()` evaluates calendar meeting days, returning `"generated"` on file creation or `"skipped_empty"` if 0 meeting days fall within semester bounds, writing to `<Output>/<Course_Sec>/Attendance/`.
 - **Grading Sheets**: `GradeGenerator` resolves `grade_sheet_xlsx` recipe via `TemplateRecipeResolver`, clamps rosters to validated capacity (40 students), preserves formulas via `data_only=False`, and saves atomically to `<Output>/<Course_Sec>/Grades/`.
+
+---
+
+## 6. Dynamic Document Rendering (`modules/generators/dynamic_renderer.py`)
+
+Phase 3 introduces the **Unified Dynamic Rendering Engine (`DynamicDocumentRenderer`)**, backed by the **Deterministic Template Analyzer (`DeterministicTemplateAnalyzer`)** and **OpenXML Grid-Topology Normalizer (`DocxGridTable`)**:
+
+1. **Decoupled Dynamic Coordinate Resolution**:
+   - `DeterministicTemplateAnalyzer` analyzes Word (`.docx`) OpenXML trees in-memory or on disk without relying on fragile hardcoded table indices.
+   - It identifies semantic slots (`cell_right`, `cell_below`, `colon_value`, `placeholder`) across document paragraphs, tables, and header stories.
+   - It discovers `RepeatingTableTopology` instances by locating header trigger keywords (`student_name`, `student_number`, `index`) and determining exact column mappings, start rows, and footer boundaries.
+
+2. **Style-Preserving Slot Mutation**:
+   - `DocxGridTable` normalizes complex Word tables containing merged cells (`w:gridSpan`, `w:vMerge`) into a rectangular coordinate grid.
+   - Cell mutations preserve OpenXML run formatting (`w:rPr`), paragraph formatting (`w:pPr`), fonts, bolding, underlines, alignments, and cell borders/shading.
+
+3. **Dynamic Repeating Table Population & Invariant Preservation**:
+   - Student rosters and attendance grids are populated dynamically row-by-row.
+   - **Font Scaling Ladder**: Automatically scales long student names (`<=30` chars -> 8pt, `31-35` chars -> 7pt, `>35` chars -> 6pt).
+   - **Auto-Numbering Preservation**: Native `<w:numPr>` list numbering in student index columns is detected and preserved without duplicate literal numbering or style stripping.
+   - **Template Row Cloning & Capacity Clearing**: Clones existing row formatting when the roster exceeds initial template rows; clears unused capacity rows cleanly without breaking cell borders or grid layout.
+
+4. **Structural Perturbation Resilience**:
+   - Generators (`DocumentGenerator`, `AttendanceGenerator`) dynamically resolve table targets at generation time.
+   - Even if decoy tables, administrative instructions, or additional header paragraphs are prepended to a template, semantic slots and roster targets are mapped with 100% precision without index-shift corruption.
+
