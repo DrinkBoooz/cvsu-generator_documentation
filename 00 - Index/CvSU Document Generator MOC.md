@@ -5,7 +5,7 @@ tags:
   - index
   - moc
 status: active
-last_modified: 2026-10-02
+last_modified: 2026-10-15
 source_of_truth:
   - executable_test/
   - modules/
@@ -47,9 +47,11 @@ graph TD
     TestStrat["[[Testing Strategy]]"]
     BuildPkg["[[Build & Packaging]]"]
     AgentInst["[[Agent Instructions]]"]
+    AgentArch["[[Agent System Architecture]]"]
+    StateMgmt["[[State Management]]"]
     HIG["[[HIG & UX Audit]]"]
 
-    Release["[[v1.0.1]]"]
+    Release["[[v1.1.0]]"]
 
     MOC --> Arch
     MOC --> Gens
@@ -79,8 +81,10 @@ graph TD
 
     Dev --> TestStrat
     Dev --> BuildPkg
-    AgentInst --> HIG
     Dev --> AgentInst
+    Dev --> AgentArch
+    Dev --> StateMgmt
+    AgentInst --> HIG
 
     Release --> MOC
 ```
@@ -126,11 +130,13 @@ graph TD
 - **[[Testing Strategy]]**: Automated test suites in `tests/`, Pytest fixtures, Playwright UI testing, and vault verification.
 - **[[Build & Packaging]]**: PyInstaller standalone executable bundling, PE metadata, and Authenticode signing.
 - **[[Agent Instructions]]**: Global rules and protocol constraints for autonomous AI contributors modifying the repository.
+- **[[Agent System Architecture]]**: Specialized agent roles, governance boundaries, pruned tool configs, and automated test invariants.
+- **[[State Management]]**: Persistent preferences, application settings schema, and migration workflows.
 - **[[HIG & UX Audit]]**: Analysis of Apple Human Interface Guidelines and WCAG 2.1 compliance.
 
 ### 🚀 05 - Releases & Changelogs
 
-- **[[v1.1.0]]**: Release notes for version 1.1.0 (Apple HIG Faculty Defaults, Document Header Live Preview, Uniform Settings Geometry, Elastic Tables, Dynamic Date Chip).
+- **[[v1.1.0]]**: Release notes for version 1.1.0 (Self-Analyzing Dynamic Template Engine, Apple HIG Faculty Defaults, Header Live Preview, Uniform Settings Geometry).
 - **[[v1.0.1]]**: Release notes for version 1.0.1 (Visual Stepper, Cancellation Engine, Toast Notifications, Playwright E2E).
 
 ---

@@ -6,14 +6,19 @@ tags:
   - ceit
   - docx
 status: active
-last_modified: 2026-09-21
+last_modified: 2026-10-15
 source_of_truth:
   - modules/generators/ceit_gen.py
+  - modules/generators/dynamic_renderer.py
+  - modules/parsers/docx_grid_table.py
+  - modules/parsers/template_analyzer.py
   - modules/services/generator_factory.py
   - modules/services/template_recipe_service.py
   - modules/parsers/template_inspector.py
   - modules/parsers/recipe_validator.py
   - modules/models/recipe.py
+  - tests/test_golden_parity.py
+  - tests/test_dynamic_renderer_resilience.py
   - templates/
 ---
 
@@ -95,6 +100,35 @@ classDiagram
   - Removes pre-existing placeholder rows from `first_data_row_index` onward.
   - Clones `template_row` per student, empties all run text `<w:t>`, and delegates to `_fill_student_row`.
   - Name font auto-scaling ladder (`is_student_name=True` via `get_student_name_font_sz`): For native academic forms (`profile_id != "custom_docx"`), automatically reduces font size based on character count: $\le 30$ chars -> 8pt (`sz="16"`, template default), $31–35$ chars -> 7pt (`sz="14"`), $> 35$ chars -> 6pt (`sz="12"`). For `custom_docx`, preserves custom template base font and applies `shrink_threshold=32, shrink_sz="18"`.
+
+---
+
+## 🔬 Dynamic Coordinate Resolution & Unified Rendering Engine
+
+CEIT document generation integrates with the **Self-Analyzing Dynamic Template Engine** components:
+
+### 1. Dynamic Coordinate Resolution (`DeterministicTemplateAnalyzer`)
+Rather than relying on brittle assumptions that metadata tables are always at `tables[0]` and student tables at `tables[1]`, `DeterministicTemplateAnalyzer` (`modules/parsers/template_analyzer.py`) provides:
+- **`analyze_docx_tree(root, body)`**: Deterministic introspector that locates metadata fields (Instructor, Course/Section, Schedule Code, Subject, Time/Days/Room, Semester/AY) across body paragraphs and tables.
+- **Topological Slot Anchoring**: Emits `SemanticSlot` instances mapping semantic labels to value targets (`cell_right`, `cell_below`, `colon_value`, or `tag_placeholder`).
+- **Repeating Table Topologies**: Identifies student roster grids dynamically by scanning for column header keywords (`name_of_student`, `student_number`, `index`, `signature`), returning exact header bounds and prototype row indices.
+
+### 2. Merged-Cell Normalization (`DocxGridTable`)
+Native CEIT templates often feature merged cells (`<w:gridSpan>` and `<w:vMerge>`), such as institutional headers and split signature boxes.
+- `DocxGridTable` (`modules/parsers/docx_grid_table.py`) constructs a 2D rectangular visual coordinate matrix.
+- Resolves all visual coordinates `(row, col)` to their canonical top-left `<w:tc>` origin elements.
+- Prevents the python-docx coordinate trap where merged cells cause irregular row lengths and duplicate text mutations.
+
+### 3. Unified Dynamic Renderer (`DynamicDocumentRenderer`)
+Implemented in `modules/generators/dynamic_renderer.py`:
+- **Run-Level Style Preservation**: Preserves font families, sizes, bolding, italics, underlines, and cell formatting from the template prototype.
+- **Dynamic Name Scaling Ladder**: Automatically scales student names based on length:
+  - $\le 30$ characters: 8pt (`sz="16"`)
+  - $31–35$ characters: 7pt (`sz="14"`)
+  - $> 35$ characters: 6pt (`sz="12"`)
+- **Native List Auto-Numbering Preservation**: Detects and retains native `<w:numPr>` numbering in student index columns without manual literal numbering.
+- **Perturbation Resilience**: Proven immune to structural shifts (decoy tables, prepended warning paragraphs, shifted table indices) by `tests/test_dynamic_renderer_resilience.py`.
+- **Golden-Master Parity**: Validated by `tests/test_golden_parity.py` against reference outputs across all 7 standard CEIT forms.
 
 ---
 

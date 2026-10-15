@@ -7,9 +7,12 @@ tags:
   - custom
   - docx
 status: active
-last_modified: 2026-09-18
+last_modified: 2026-10-15
 source_of_truth:
   - modules/generators/generic_doc_gen.py
+  - modules/generators/dynamic_renderer.py
+  - modules/parsers/docx_grid_table.py
+  - modules/parsers/template_analyzer.py
   - modules/generators/document_generator.py
   - modules/generators/field_resolver.py
   - modules/generators/ceit_gen.py
@@ -19,6 +22,8 @@ source_of_truth:
   - modules/common/path_utils.py
   - modules/parsers/template_inspector.py
   - modules/parsers/semantic_registry.py
+  - tests/test_deterministic_template_analyzer.py
+  - tests/test_dynamic_renderer_resilience.py
 ---
 
 # Generic Document Generator
@@ -92,6 +97,55 @@ graph TD
 
 ---
 
+## ⚡ In-App Deterministic Analysis & Dynamic Generation Engine
+
+For custom, arbitrary, or dynamically imported user templates, the application pairs `DeterministicTemplateAnalyzer` (`modules/parsers/template_analyzer.py`) with `DynamicDocumentRenderer` (`modules/generators/dynamic_renderer.py`):
+
+```mermaid
+flowchart TD
+    UserDoc["User Drops Custom .docx Template"] --> Analyzer["DeterministicTemplateAnalyzer.analyze_docx_tree()"]
+    Analyzer --> Grid["DocxGridTable Normalization<br/>(Resolves gridSpan & vMerge)"]
+    Grid --> Manifest["TemplateManifest (Structured Blueprint)<br/>• Semantic Slots (cell_right, cell_below, colon, tag)<br/>• Repeating Table Topologies (header bounds, capacity)<br/>• Explicit Placeholders ({{TAG}})<br/>• SHA-256 Fingerprint & In-App Diagnostics"]
+    
+    Manifest --> UI["UI Template Studio / Card Review<br/>(Displays confidence, slots, capacity, diagnostics)"]
+    UI --> Store["ConfigManager / Custom Templates Store"]
+    Store --> Factory["GeneratorFactory.get_all(include_custom=True)"]
+    
+    Factory --> Renderer["DynamicDocumentRenderer / ConfigurableDocumentGenerator"]
+    ClassData["ClassInfo Runtime Data"] --> Renderer
+    Renderer --> OutputDoc["Output Form (.docx)<br/>• Run-level style & font preservation<br/>• Dynamic name scaling ladder<br/>• Native list auto-numbering preservation<br/>• Structural perturbation resilience"]
+```
+
+### 1. 100% Offline Deterministic Analysis (<20ms)
+- **Zero AI / Zero Internet**: Executes entirely via pure Python (`lxml` and `openpyxl`).
+- **Semantic Slot Anchoring**: Automatically detects labels and binds to corresponding data targets:
+  - `cell_right`: Adjacent cell in the 2D grid (e.g. `[Row 0, Col 0: "Instructor"]` &rarr; targets `[Row 0, Col 1]`). Introspects colon columns (`:`), jumping across them cleanly via `target_value_cell_right`.
+  - `cell_below`: Target cell visually below label (e.g. multi-row form headers).
+  - `colon_value`: In-paragraph label followed by a colon (`"Instructor: Dan Joseph Ortega"`).
+  - `placeholder`: Tag placeholders such as `{{INSTRUCTOR}}` or `{{COURSE_SECTION}}`.
+- **Repeating Table Topologies**:
+  - Distinguishes metadata tables from repeating student roster grids by detecting column triggers (`name_of_student`, `student_number`, `index`, `signature`).
+  - Detects multi-row headers and separates them from blank data prototype rows.
+  - Measures template capacity and distinguishes footer signature rows.
+
+### 2. Merged-Grid Normalization (`DocxGridTable`)
+- Normalizes complex tables containing merged cells (`w:gridSpan` and `w:vMerge`) into a regular 2D visual coordinate matrix.
+- Guarantees that mutations apply strictly to the origin `<w:tc>` element, eliminating python-docx merged cell coordinate bugs.
+
+### 3. Blueprint Manifest & Diagnostics (`TemplateManifest`)
+`TemplateManifest` provides transparent in-app diagnostics:
+- `is_ready`: Boolean flag indicating if template can be populated immediately.
+- `get_diagnostics()`: Generates human-readable feedback explaining detected slots, roster capacity, and any missing fields.
+
+### 4. Dynamic Style-Preserving Rendering (`DynamicDocumentRenderer`)
+- Consumes `TemplateManifest` or `ValidatedTemplateRecipe`.
+- Populates metadata slots and repeats student rows while preserving XML formatting (`<w:rPr>`, `<w:pPr>`, `<w:tcPr>`, bold, fonts, borders).
+- Dynamically reduces font sizes for long names using the unified ladder ($\le 30$ chars &rarr; 8pt, $31–35$ chars &rarr; 7pt, $> 35$ chars &rarr; 6pt).
+- Retains native auto-numbering (`<w:numPr>`) in index columns.
+- Tested and proven immune to structural layout shifts by `tests/test_dynamic_renderer_resilience.py`.
+
+---
+
 ## 📋 Complete Generator-by-Generator Mapping (Target 12)
 
 Target 12 was audited against the comprehensive 23-attribute checklist, and any unavailable evidence is explicitly marked.
@@ -157,6 +211,9 @@ Target 12 was audited against the comprehensive 23-attribute checklist, and any 
   - Roster table with missing optional `index_col` (skips index population without error).
   - Isolated compound metadata labels like `"Course Code & Title"` safely bound to `subject` without colliding with `subject_code` or `subject_title`.
 - **Automated tests**:
+  - `tests/test_deterministic_template_analyzer.py` (comprehensive 40-test suite verifying offline OpenXML inspection, slot anchoring, table topology discovery, capacity limits, and manifest serialization)
+  - `tests/test_dynamic_renderer_resilience.py` (resilience suite proving perturbation immunity against prepended decoy tables, warning notes, and mutated table orders)
+  - `tests/test_golden_parity.py` (golden-master output parity verifying 100% byte-accurate rendering against production baselines)
   - `tests/test_custom_template_routing.py` (comprehensive 13-test suite covering safe relative path validation, traversal rejection, single source of truth in `recipe.metadata`, `generator.output_folder` property contract, and real `orchestrator.process_all` integration routing to custom/nested/default folders alongside native CEIT forms)
   - `tests/test_multi_row_roster_headers.py` (5-test suite for multi-row header detection, blank template row handling, structural bounds validation, and end-to-end generation preservation of secondary headers)
   - `tests/test_compound_semantic_labels.py` (5-test suite verifying isolated matching for `Course Code` -> `subject_code`, `Course Title` -> `subject_title`, and `Course Code & Title` -> `subject`)

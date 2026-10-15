@@ -5,7 +5,7 @@ tags:
   - architecture
   - pywebview
 status: active
-last_modified: 2026-09-17
+last_modified: 2026-10-15
 source_of_truth:
   - executable_test/main.py
   - executable_test/api/
@@ -14,6 +14,9 @@ source_of_truth:
   - executable_test/css/components.css
   - executable_test/js/app.js
   - modules/services/orchestrator.py
+  - modules/parsers/docx_grid_table.py
+  - modules/parsers/template_analyzer.py
+  - modules/generators/dynamic_renderer.py
 ---
 
 # System Architecture
@@ -54,10 +57,17 @@ graph LR
         Orchestrator["modules/services/orchestrator.py"]
     end
 
+    subgraph DynamicEngine ["Dynamic Analysis & Rendering Engine"]
+        Analyzer["modules/parsers/template_analyzer.py<br/>(DeterministicTemplateAnalyzer)"]
+        Grid["modules/parsers/docx_grid_table.py<br/>(DocxGridTable Normalizer)"]
+        Renderer["modules/generators/dynamic_renderer.py<br/>(DynamicDocumentRenderer)"]
+    end
+
     subgraph Engines ["Generation Engines"]
         CEIT["modules/generators/ceit_gen.py"]
         Att["modules/generators/attendance_gen.py"]
         Grade["modules/generators/grade_gen.py"]
+        Custom["modules/generators/generic_doc_gen.py"]
     end
 
     UI --> State
@@ -71,9 +81,12 @@ graph LR
     API --> Validator
     API --> Orchestrator
     
+    Orchestrator --> DynamicEngine
+    DynamicEngine --> Engines
     Orchestrator --> CEIT
     Orchestrator --> Att
     Orchestrator --> Grade
+    Orchestrator --> Custom
 ```
 
 ---
@@ -114,3 +127,8 @@ graph LR
 - Threaded execution in `modules/services/orchestrator.py:process_all`.
 - Pushes live step progress and status messages back to the UI via `window.onGenerationProgress` callbacks.
 - Supports instant, clean cancellation via thread-safe `threading.Event`.
+
+### 6. Dynamic Analysis & Rendering Engine ([[Template Discovery Pipeline]])
+- **Deterministic Template Introspection**: `DeterministicTemplateAnalyzer` (`modules/parsers/template_analyzer.py`) scans `.docx` and `.xlsx` templates in under 20ms using pure Python algorithms, discovering semantic slots and repeating table topologies without calling external AI services.
+- **2D Grid-Topology Normalization**: `DocxGridTable` (`modules/parsers/docx_grid_table.py`) constructs a 2D rectangular visual coordinate matrix resolving horizontal spans (`w:gridSpan`) and vertical continuations (`w:vMerge`) to their canonical origin cells, eliminating merged-cell coordinate traps.
+- **Unified Dynamic Rendering Engine**: `DynamicDocumentRenderer` (`modules/generators/dynamic_renderer.py`) populates Word templates with run-level style preservation, dynamic name font auto-scaling, native list auto-numbering preservation, and perturbation resilience verified by `tests/test_dynamic_renderer_resilience.py`.

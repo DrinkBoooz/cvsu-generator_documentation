@@ -7,9 +7,12 @@ tags:
   - docx
   - recipes
 status: active
-last_modified: 2026-09-21
+last_modified: 2026-10-15
 source_of_truth:
   - modules/generators/attendance_gen.py
+  - modules/generators/dynamic_renderer.py
+  - modules/parsers/docx_grid_table.py
+  - modules/parsers/template_analyzer.py
   - modules/parsers/template_inspector.py
   - modules/parsers/recipe_validator.py
   - modules/models/recipe.py
@@ -109,6 +112,22 @@ gen.generate(
 
 ---
 
+## 🔬 OpenXML Grid Normalization & Dynamic Coordinate Resolution
+
+The attendance matrix is one of the most structurally complex OpenXML templates in the application due to multi-level merged headers:
+- Header Row 0 contains merged week groupings (`WEEK 1`, `WEEK 2`, ...) spanning across multiple session columns using `<w:gridSpan>`.
+- Summary columns (`LB`, `LC`, `Remarks`) span vertically across Header Rows 0 and 1 via `<w:vMerge>`.
+- Prototype student rows contain synchronized vertical cell boundaries matching the date matrix above.
+
+### `DocxGridTable` 2D Grid Invariance
+The engine uses `DocxGridTable` (`modules/parsers/docx_grid_table.py`) to eliminate the merged-cell coordinate trap:
+1. **True Visual Coordinates**: Converts irregular physical `<w:tr>` element children into a regular 2D visual matrix `(row, col)`.
+2. **Canonical Origin Cell Resolution**: When inspecting or styling merged headers, `get_canonical_cell(row, col)` automatically resolves to the top-left `<w:tc>` origin, preventing duplicate text injection onto hidden `<w:vMerge/>` continuation cells.
+3. **Dynamic Topology Detection**: `DeterministicTemplateAnalyzer` (`modules/parsers/template_analyzer.py`) uses `DocxGridTable` to inspect table topologies, distinguishing metadata header tables from attendance matrices and discovering column boundaries without hardcoding table index `tables[0]` or `tables[1]`.
+4. **Resilience & Parity**: Verified by `tests/test_golden_parity.py` (guaranteeing bit-for-bit parity against reference attendance sheets) and `tests/test_dynamic_renderer_resilience.py` (proving generation succeeds even when decoy tables or administrative instructions are prepended).
+
+---
+
 ## 📅 Domain Scheduling & ISO Calendar Geometry
 
 The domain scheduling calculations remain preserved in the generator layer:
@@ -196,6 +215,8 @@ return gen.generate(...)
   - `tests/test_attendance_default_template.py`
   - `tests/test_invalid_templates.py::test_e11`..`test_e18`
   - `tests/test_template_mutations.py::test_m11`..`test_m20`
+  - `tests/test_golden_parity.py`
+  - `tests/test_dynamic_renderer_resilience.py`
   - `tests/test_ast_rules.py`
 
 ---
@@ -216,3 +237,5 @@ return gen.generate(...)
   - `tests/test_attendance_schedule_parsing.py`
   - `tests/test_template_mutations.py`
   - `tests/test_invalid_templates.py`
+  - `tests/test_golden_parity.py`
+  - `tests/test_dynamic_renderer_resilience.py`

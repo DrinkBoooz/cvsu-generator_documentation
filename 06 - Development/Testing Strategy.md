@@ -6,10 +6,12 @@ tags:
   - pytest
   - playwright
 status: active
-last_modified: 2026-10-14
+last_modified: 2026-10-15
 source_of_truth:
   - tests/
   - tests/test_golden_parity.py
+  - tests/test_deterministic_template_analyzer.py
+  - tests/test_dynamic_renderer_resilience.py
   - tests/test_accessibility_settings.py
   - tests/test_packaged_executable_theme_diag.py
   - tests/test_ui_asset_resilience.py
@@ -45,6 +47,7 @@ All automated tests, fixtures, mocks, regression scripts, and verification utili
 graph TD
     Tests["tests/ Suite"] --> Unit["Unit & Parsing Tests"]
     Tests --> DocxXlsx["Generator & Template Tests"]
+    Tests --> Dynamic["Dynamic Analyzer & Renderer Suites"]
     Tests --> Integ["UI Bridge & Consistency Tests"]
     Tests --> Resilience["UI Resilience & Transport Tests"]
     Tests --> Diag["Diagnostic Hook Tests"]
@@ -56,6 +59,7 @@ graph TD
 
     Unit --> T1["test_modules_parsing.py<br>test_roster_parser.py"]
     DocxXlsx --> T2["test_modules_generation.py<br>test_grade_generator.py"]
+    Dynamic --> T11["test_deterministic_template_analyzer.py<br>test_dynamic_renderer_resilience.py<br>test_golden_parity.py"]
     Integ --> T3["test_ui_consistency.py<br>test_executable_test_api_bindings.py"]
     Resilience --> T4["test_ui_asset_resilience.py"]
     Diag --> T5["test_diagnostic_probe.py"]
@@ -159,3 +163,21 @@ Validates generated Word (.docx) and Attendance documents against preserved gold
 - **Document & Header Story Streams**: Validates paragraphs across body and header stories (`word/header*.xml`), ensuring institutional metadata, instructor identity, and course details are populated.
 - **Deterministic Golden-Master Comparison**: Verifies that newly generated CEIT forms and month-by-month attendance sheets match the exact structural schema and student rows of `tests/fixtures/golden_outputs/`.
 - **Placeholder Hygiene**: Programmatically asserts that no raw template tags (e.g., `<INSTRUCTOR>`, `{{TAG}}`) remain unpopulated.
+
+### 13. Deterministic Template Analysis & Grid Normalization (`tests/test_deterministic_template_analyzer.py`)
+Validates the dynamic template introspection engine in `modules/parsers/`:
+- **OpenXML 2D Grid Normalization (`DocxGridTable`)**: Tests 2D virtual coordinate grid mapping across complex `<w:gridSpan>` and `<w:vMerge>` cells, asserting proper root/continuation handling and duplicate write prevention.
+- **Semantic Slot Anchoring**: Verifies deterministic discovery of metadata slots via four anchoring modes: `cell_right`, `cell_below`, `colon_value`, and `placeholder`.
+- **Repeating Table Topology**: Verifies dynamic table classification into `STUDENT_ROSTER`, `ATTENDANCE_MONTH`, or `UNKNOWN`, detecting student name/number columns and dynamic row insertion points.
+- **Excel (.xlsx) Sheet Introspection**: Tests `analyze_xlsx()` sheet discovery, header coordinates, and signature block layouts.
+- **Synthetic Perturbation Invariance**: Asserts that inserting decoy tables, prepending introductory paragraphs, or shifting rows does not break coordinate resolution.
+- **Manifest Serialization & Checksums**: Tests `TemplateManifest` serialization/deserialization and deterministic SHA-256 fingerprinting.
+
+### 14. Dynamic Document Renderer Resilience & Golden Parity (`tests/test_dynamic_renderer_resilience.py`)
+Validates the universal rendering engine in `modules/generators/dynamic_renderer.py`:
+- **End-to-End Golden Parity**: Asserts 100% byte and structural parity between documents rendered via `DynamicDocumentRenderer` and legacy static generators.
+- **Structural Perturbation Resilience**: Exercises dynamic rendering against templates modified with prepended paragraphs and decoy tables, proving zero hardcoded index dependencies.
+- **Style Preservation**: Asserts run-level font family names, bold/italic flags, cell background shading, and `<w:numPr>` list numbering are preserved in generated outputs.
+- **Dynamic Font Scaling Ladder**: Validates that long student names automatically scale according to length rules (`<= 30` chars -> 8pt, `31-35` chars -> 7pt, `> 35` chars -> 6pt).
+- **Excel Dynamic Rendering**: Tests dynamic row injection and formula shifting for Excel grading sheets.
+

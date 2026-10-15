@@ -6,10 +6,11 @@ tags:
   - grades
   - xlsx
 status: active
-last_modified: 2026-09-15
+last_modified: 2026-10-15
 source_of_truth:
   - templates/
   - modules/generators/grade_gen.py
+  - modules/parsers/template_analyzer.py
   - modules/parsers/template_inspector.py
   - modules/parsers/recipe_validator.py
   - modules/models/recipe.py
@@ -68,6 +69,18 @@ Rather than using fragile hardcoded coordinates or naive relative row offsets (s
 1. Locates the merged label block containing `"INSTRUCTOR"` (e.g. `BI60:BR62` in Lecture, `AO62:AX64` in Lab, `J59:S61` in Consolidated).
 2. Scans all merged cell ranges in the worksheet for the structural signature block directly above it (`min_col == label.min_col`, `max_col == label.max_col`, and `max_row == label.min_row - 1`).
 3. Dynamically resolves the top-left coordinate of that merged box (`BI57` in Lecture, `AO59` in Lab, `J56` in Consolidated), rendering discovery completely resilient to row additions or structural repositioning (Mutation M8).
+
+---
+
+## 🔬 Deterministic Spreadsheet Introspection (`analyze_xlsx`) & Diagnostics
+
+In the modernized template analyzer engine (`modules/parsers/template_analyzer.py`), `analyze_xlsx(file_path)` performs deterministic structural inspection of Excel workbooks:
+- **Sheet Discovery**: Maps worksheet roles (`Lecture`, `Laboratory`, `Consolidated`, `Grading Sheet`) without hardcoded sheet indices.
+- **Topological Slot Anchoring**: Locates metadata cells (Instructor, Subject, Course & Section, Schedule Code) across sheets.
+- **Capacity Diagnostics (`TemplateManifest`)**:
+  - Automatically emits a `TemplateManifest` with `file_type="xlsx"`.
+  - Reports roster start rows, student number / name column coordinates, and explicit capacity limits (40 students).
+  - Diagnostics warning is issued if pre-formatted rows or linked summary formulas are modified, preventing accidental workbook formula corruption.
 
 ---
 

@@ -11,7 +11,7 @@ source_of_truth:
   - modules/generators/
   - modules/generators/dynamic_renderer.py
   - modules/parsers/template_analyzer.py
-  - modules/parsers/docx_grid.py
+  - modules/parsers/docx_grid_table.py
   - modules/services/orchestrator.py
   - modules/services/template_recipe_service.py
   - modules/parsers/recipe_validator.py

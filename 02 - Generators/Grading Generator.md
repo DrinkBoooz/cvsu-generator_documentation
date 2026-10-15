@@ -6,9 +6,10 @@ tags:
   - grades
   - xlsx
 status: active
-last_modified: 2026-09-18
+last_modified: 2026-10-15
 source_of_truth:
   - modules/generators/grade_gen.py
+  - modules/parsers/template_analyzer.py
   - modules/services/orchestrator.py
   - modules/services/template_recipe_service.py
   - modules/parsers/template_inspector.py
@@ -61,6 +62,36 @@ graph TD
 3. **Capacity Enforcement**: The validated grade-sheet recipe supplies the capacity limit; current production grade-sheet recipes resolve to a 40-student capacity, and `GradeGenerator` clamps the roster to that validated capacity (`recipe.roster_binding.capacity_limit`).
 4. **Structural Merged Cell Signature Geometry (Mutation M8)**: Signatures are located by discovering the merged label block containing `"INSTRUCTOR"`, then scanning for the merged box directly above it (`min_col == label.min_col`, `max_col == label.max_col`, `max_row == label.min_row - 1`). The target is resolved to its top-left coordinate (`BI57` in Lecture, `AO59` in Lab, `J56` in Consolidated).
 5. **Atomic File Safety**: Writes to a temporary `.tmp.xlsx` file inside the destination directory, closing `openpyxl` before replacing the destination via atomic `os.replace`.
+
+---
+
+## 🔬 Deterministic Spreadsheet Analysis (`analyze_xlsx`) & TemplateManifest
+
+In Phase 2 and 3 of the Static-to-Dynamic migration, spreadsheet introspection was formalized under `DeterministicTemplateAnalyzer.analyze_xlsx()` in `modules/parsers/template_analyzer.py`:
+
+```mermaid
+flowchart TD
+    Workbook[".xlsx Workbook (openpyxl)"] --> Analyzer["DeterministicTemplateAnalyzer.analyze_xlsx()"]
+    Analyzer --> SheetScan["Worksheet Scanner<br/>(Lecture, Laboratory, Consolidated, Grading Sheet)"]
+    SheetScan --> Slots["Metadata Cell Extraction<br/>(Instructor, Course & Sec, Subject, Sched Code)"]
+    SheetScan --> Topology["Roster Table Topology<br/>(Header row, first data row, columns, capacity limit: 40)"]
+    SheetScan --> Signature["Structural Merged Signature Geometry<br/>(Discovers top-left origin cell above INSTRUCTOR label)"]
+    
+    Slots --> Manifest["TemplateManifest (file_type='xlsx')"]
+    Topology --> Manifest
+    Signature --> Manifest
+    Manifest --> Resolver["TemplateRecipeResolver / GradeGenerator"]
+```
+
+### 1. Zero-AI Structural Excel Introspection
+- **Worksheet Role Mapping**: Automatically detects functional sheets: `Lecture`, `Laboratory`, `Consolidated`, and `Grading Sheet`.
+- **Dynamic Slot Extraction**: Detects cell labels (e.g. `"Instructor:"`, `"Subject:"`, `"Course / Section:"`) across worksheets and resolves their target value cell coordinates.
+- **Structural Merged Signature Discovery**: Replaces fragile fixed cell targets with structural geometric search: discovers the merged block labeled `"INSTRUCTOR"`, finds the merged box positioned directly above it (`min_col == label.min_col`, `max_col == label.max_col`, `max_row == label.min_row - 1`), and assigns the signature target to the box's top-left origin cell.
+
+### 2. Capacity Clamping & Formula Safety
+- `TemplateManifest` documents the strict 40-student capacity limit of the institutional grading formulas.
+- `GradeGenerator` enforces `students[:capacity_limit]`, preventing row insertions that would break formula reference ranges (`=AVERAGE(D11:D50)`).
+- Formulas are preserved intact by loading workbooks with `openpyxl.load_workbook(data_only=False)` and escaping user-supplied strings starting with `=`, `+`, `-`, or `@`.
 
 ---
 

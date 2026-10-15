@@ -10,7 +10,7 @@ last_modified: 2026-10-15
 source_of_truth:
   - modules/generators/dynamic_renderer.py
   - modules/parsers/template_analyzer.py
-  - modules/parsers/docx_grid.py
+  - modules/parsers/docx_grid_table.py
   - modules/parsers/schedule_parser.py
   - modules/parsers/roster_parser.py
   - modules/services/validator.py

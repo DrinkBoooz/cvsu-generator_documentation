@@ -6,9 +6,12 @@ tags:
   - agents
   - rules
 status: active
-last_modified: 2026-09-13
+last_modified: 2026-10-15
 source_of_truth:
   - AGENTS.md
+  - tests/test_golden_parity.py
+  - tests/test_deterministic_template_analyzer.py
+  - tests/test_dynamic_renderer_resilience.py
 ---
 
 # Agent Instructions
@@ -18,6 +21,8 @@ This note documents the protocols and rules provided to autonomous development a
 Related notes:
 - [[CvSU Document Generator MOC]]
 - [[Development Workflow]]
+- [[Agent System Architecture]]
+- [[Testing Strategy]]
 
 ---
 
@@ -43,5 +48,18 @@ The Obsidian vault (`cvsu-generator_documentation`) is the primary human-readabl
 ### 6. Executable Packaging & Code Signing
 Agents must ensure the Windows PE build correctly incorporates Authenticode code signing using `sign_exe.ps1` and embeds `file_version_info.txt`.
 
-### 7. Adding New Templates Protocol
-When adding new `.docx` or `.xlsx` templates, agents must place them in the correct folder, inspect template structure, write a subclass implementation, register it in the `GeneratorFactory`, update tests, and document the behavior in the vault.
+### 7. Modernized Dynamic Template Protocol
+With the completion of the **Self-Analyzing Dynamic Template Engine**, agents should no longer author manual Python subclasses with hardcoded table indices (e.g. `tables[1]`) or fixed coordinate tuples:
+- **Automatic Structural Introspection**: Ingesting new Word (`.docx`) or Excel (`.xlsx`) templates is handled via `DeterministicTemplateAnalyzer` (`modules/parsers/template_analyzer.py`) and `DocxGridTable` (`modules/parsers/docx_grid_table.py`), which detect semantic slots (`cell_right`, `cell_below`, `colon_value`, `placeholder`) and repeating table topologies dynamically.
+- **Dynamic Style-Preserving Rendering**: Generation executes via `DynamicDocumentRenderer` (`modules/generators/dynamic_renderer.py`) or `ConfigurableDocumentGenerator`, preserving original OpenXML formatting, native `<w:numPr>` list numbering, and applying the unified student name font scaling ladder.
+- **Testing Verification**: Any new or updated template must pass:
+  - `tests/test_golden_parity.py` (proves bit-for-bit parity against reference baselines).
+  - `tests/test_deterministic_template_analyzer.py` (validates offline slot introspection in <20ms).
+  - `tests/test_dynamic_renderer_resilience.py` (proves immunity to structural decoy tables and layout shifts).
+
+### 8. Verification Loop & Self-Evaluation Gate
+Before completing any task, agents must execute the mandatory verification loop:
+- Run `pytest tests/test_obsidian_vault_integrity.py tests/test_manifest_integrity.py tests/test_ast_rules.py tests/test_dependency_manifests.py`.
+- Run `python scripts/test_orchestrator.py --fast` (Python 3.14 baseline) verifying 100% pass rate across all layers.
+- Apply the structured 5-axis self-evaluation scorecard (Accuracy, Completeness, Clarity, Actionability, Conciseness) per `.agents/skills/agent-self-evaluation/SKILL.md`.
+

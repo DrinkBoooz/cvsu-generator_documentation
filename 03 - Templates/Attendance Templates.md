@@ -6,10 +6,12 @@ tags:
   - attendance
   - docx
 status: active
-last_modified: 2026-09-15
+last_modified: 2026-10-15
 source_of_truth:
   - attendance/
   - modules/generators/attendance_gen.py
+  - modules/parsers/docx_grid_table.py
+  - modules/parsers/template_analyzer.py
   - modules/services/orchestrator.py
 ---
 
@@ -58,6 +60,22 @@ Both templates consist of two primary tables:
    - **Column 3**: Student Number. Fixed percentage width: `499 pct`.
    - **Columns 4 to 4+N**: Calendar Meeting Dates. Allocated from the remaining date pool (`5000 - 2577 = 2423 pct`), divided evenly across session count (`DATE_W = 2423 // n_date_cols`).
    - **Summary Columns**: Total Present (`212 pct`), Total Absent (`208 pct`), Remarks (`133 pct`).
+
+---
+
+## 🔬 Merged-Grid Normalization & TemplateManifest Diagnostics
+
+### 1. Complex Header Grid Normalization (`DocxGridTable`)
+Attendance templates feature multi-level merged cells in the matrix table:
+- **Horizontal Merges (`<w:gridSpan>`)**: Header Row 0 groups multiple meeting days into ISO calendar weeks (`WEEK 1`, `WEEK 2`, ...).
+- **Vertical Merges (`<w:vMerge>`)**: Summary columns (`LB`, `LC`, `Remarks`) span Header Rows 0 and 1 vertically, creating continuation cells.
+- **Visual Matrix Mapping**: `DocxGridTable` (`modules/parsers/docx_grid_table.py`) flattens these irregular rows into a 2D rectangular grid. Any visual access to merged regions resolves directly to the top-left origin `<w:tc>` element, eliminating python-docx coordinate index distortion.
+
+### 2. In-App Template Diagnostics (`TemplateManifest`)
+When an attendance template is inspected via `DeterministicTemplateAnalyzer` (`modules/parsers/template_analyzer.py`), it produces a `TemplateManifest`:
+- **Discovered Columns**: Automatically locates `no_col`, `name_col`, `id_col`, and `date_columns_start` without positional guessing.
+- **Capacity Measurement**: Measures `template_session_capacity` (number of pre-formatted session columns) and `template_student_row_capacity`.
+- **Diagnostics Reporting**: `manifest.get_diagnostics()` verifies presence of the info table (requires $\ge 3$ fields) and matrix structure, emitting actionable alerts if structural columns are missing or malformed.
 
 ---
 

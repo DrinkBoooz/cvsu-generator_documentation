@@ -6,11 +6,14 @@ tags:
   - ceit
   - docx
 status: active
-last_modified: 2026-09-15
+last_modified: 2026-10-15
 source_of_truth:
   - templates/
   - modules/generators/ceit_gen.py
+  - modules/generators/dynamic_renderer.py
   - modules/generators/generic_doc_gen.py
+  - modules/parsers/docx_grid_table.py
+  - modules/parsers/template_analyzer.py
   - modules/parsers/template_inspector.py
   - modules/parsers/recipe_validator.py
   - modules/models/recipe.py
@@ -74,21 +77,29 @@ Subsequent columns (signatures, dates, grades, remarks) are preserved intact fro
 
 ---
 
-## ⚙️ Custom Template Recipes (`generic_doc_gen.py`)
+## ⚙️ Custom & Dynamic Template Architecture
 
-Users can import custom Word templates via the application interface. Custom templates do not require predefined layouts. Instead, `ConfigurableDocumentGenerator` validates serialized recipe dictionaries through `RecipeValidator.validate_dict(..., "custom_docx")` when a validated recipe object is not already supplied.
+Users can import arbitrary Microsoft Word templates via the application interface. Rather than requiring strict manual column alignment or static table layouts:
 
-`validate_dict()` strictly enforces `schema_version == 2` and rejects externally supplied `_construction_token`.
+### 1. Semantic Slot Anchoring
+`DeterministicTemplateAnalyzer` (`modules/parsers/template_analyzer.py`) scans the document to anchor metadata slots dynamically:
+- **`cell_right`**: Binds the target value cell horizontally adjacent to the label. Introspects colon columns (`:`) via `DocxGridTable` to jump across separator cells to the target data cell.
+- **`cell_below`**: Binds the target value cell vertically directly below the label.
+- **`colon_value`**: Preserves leading label runs and injects values after paragraph colon delimiters without disturbing fonts or indentation.
+- **`placeholder`**: Replaces tag placeholders (`{{INSTRUCTOR}}`, `{{SUBJECT}}`, `{{COURSE_SECTION}}`) with 2-pass fragmented XML run reconstruction.
 
-### Supported Binding Types
-1. **Table Cell (`table_cell`)**: Targets an explicit cell coordinate via `(table_index, row_index, cell_index)`.
-2. **Paragraph Colon (`paragraph_colon`)**: Locates a specific `para_index` and injects text immediately following the first colon separator.
-3. **Placeholders (`placeholders`)**: Scans all text runs for tokens such as `{{INSTRUCTOR}}`, `{{SUBJECT}}`, `{{COURSE_SECTION}}`. Uses a two-pass replacement engine to resolve placeholder text fragmented across multiple XML `<w:r>` runs.
+### 2. Merged-Grid Normalization (`DocxGridTable`)
+WordprocessingML tables with merged cells (`<w:gridSpan>` and `<w:vMerge>`) are normalized into a 2D matrix:
+- Translates physical XML rows into visual grid coordinates.
+- References canonical origin `<w:tc>` elements, preventing duplicate writes to continuation cells.
+- Preserves cell widths, borders, shading, and margins during dynamic row duplication.
 
-### Custom Roster Table Bindings
-The custom recipe defines:
-- `table_index`: Zero-based index of the table hosting the student list.
-- `first_data_row_index`: Zero-based row index of the prototype row to clone.
-- `index_col`: Optional column index for sequential student numbers (`1..N`).
-- `name_col`: Zero-based column index for student full names.
-- `id_col`: Zero-based column index for student ID numbers.
+### 3. In-App Template Diagnostics (`TemplateManifest`)
+When custom templates are analyzed:
+- The system generates an authoritative `TemplateManifest`.
+- `is_ready` flags whether the document contains sufficient slots or repeating tables to generate.
+- `get_diagnostics()` provides clear human-readable notices:
+  - Detected slots: `Instructor`, `Course/Section`, `Schedule Code`, `Subject`, `Time/Days/Room`, `Semester/AY`.
+  - Detected roster table index, header row bounds, and prototype data capacity.
+  - Suggestions for missing fields or unmapped tags.
+- Enabled custom forms are populated by `DynamicDocumentRenderer` or `ConfigurableDocumentGenerator` using the dynamic font scaling ladder and native `<w:numPr>` auto-numbering preservation.
