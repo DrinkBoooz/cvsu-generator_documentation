@@ -7,7 +7,7 @@ tags:
   - accessibility
   - design
 status: active
-last_modified: 2026-10-15
+last_modified: 2026-10-16
 source_of_truth:
   - executable_test/ui.html
   - executable_test/css/
@@ -406,6 +406,32 @@ Forensic review of previous audit claims in legacy documentation:
    - *Proposal*: Consider binding global accelerator keys (e.g., `Ctrl+,` for Settings, `Ctrl+L` for Diagnostics Logs, `F1` for Help) to expand accessibility for keyboard-only desktop power users.
 4. **Dedicated Windows High Contrast Visual Testing**:
    - *Proposal*: Execute visual regression testing under active Windows High Contrast themes (Aquatic/Desert) to verify card border clarity in physical runtime environments.
+
+---
+
+## 13.1 Phase 8 Accessibility & Visual Architecture Assessment
+
+Commit `222` introduces the Phase 8 UI modernization suite, assessed against Apple HIG direct manipulation, clarity, and WCAG 2.1 Level AA accessibility standards:
+
+### 1. Visual Template Slot Mapper Drawer (`#modalSlotMapperBackdrop`)
+- **Direct Manipulation**: Rather than forcing users to manually edit underlying Word XML or YAML files, the normalized 2D virtual grid allows direct inspection of template structure with merged cell coordinates and instant visual assignment.
+- **Keyboard Navigation & ARIA Semantics**:
+  - Grid cells are declared with `role="gridcell"`, `tabindex="0"`, and dynamic `aria-label="Row R, Column C: <text>"`.
+  - Full keyboard activation via `Enter` or `Space` key handlers.
+  - Visible keyboard focus rings bound to `--a11y-focus-ring-color` (`outline-offset: -1px`).
+- **Color Independence & Badging**: Semantic roles are distinguished not only by subtle background tints but by high-contrast text badges (`⚡ field (strategy)`, `badge-roster`, `badge-sig`).
+
+### 2. Pre-Flight Sample Document Preview (`#modalPreflightPreviewBackdrop`)
+- **Error Prevention & Clarity**: Conforms to HIG feedback guidelines by rendering a complete sample section synthesis in memory before batch operations run.
+- **Dynamic 3-Tier Font Scaling Badging**:
+  - `<= 30` students &rarr; `8pt Tier` (Emerald)
+  - `31 - 35` students &rarr; `7pt Tier` (Amber)
+  - `> 35` students &rarr; `6pt Tier` (Rose)
+  - Provides instant reassurance on typography scaling before physical generation.
+
+### 3. Batch Telemetry, Cooperative Cancellation & Headless PDF Export
+- **Determinate Progress Feedback**: Implements standard `role="progressbar"`, `aria-valuemin="0"`, `aria-valuemax="100"`, `aria-valuenow`, and descriptive `aria-valuetext` updated via both PyWebView background event push and 350ms polling.
+- **User Control & Cooperative Cancellation**: The prominent "Cancel Generation" button halts the pipeline cleanly between documents without leaving corrupt output files on disk.
 
 ---
 

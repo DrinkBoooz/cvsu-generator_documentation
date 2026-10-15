@@ -6,7 +6,7 @@ tags:
   - ui
   - accessibility
 status: active
-last_modified: 2026-10-15
+last_modified: 2026-10-16
 source_of_truth:
   - executable_test/ui.html
   - executable_test/css/base.css
@@ -482,6 +482,66 @@ Phase 4 connected `DeterministicTemplateAnalyzer` and `TemplateManifest` directl
 - **Analysis Completion Announcement**: `window.announceA11y(...)` announces template analysis results, indicating whether the template is verified and ready or diagnostics are available.
 - **Focus Shift**: Automatically focuses `#customFormTitle` upon inspection result rendering, enabling immediate keyboard editing without tabbing through prior elements.
 - **Preview Discard / Cancellation**: Dismissing the card (`cancelCustomTemplatePreview()`) returns focus directly to `#templateDropzone` and broadcasts an accessible confirmation via `announceA11y`.
+
+---
+
+## 🗺️ Visual Slot Mapper Drawer & 2D Virtual Grid (`#modalSlotMapperBackdrop`)
+
+Phase 8 surfaces `TemplateManifest` and `DocxGridTable` directly in the UI through an interactive visual slot mapper drawer:
+
+1. **2D Virtual Grid Rendering (`#slotMapperGridContainer`)**:
+   - Visualizes normalized table cells across `<w:gridSpan>` and `<w:vMerge>`.
+   - Each cell exposes `tabindex="0"`, `role="gridcell"`, hover micro-animations, and keyboard navigation (`Tab`, `Enter`, `Space`).
+   - Distinct visual state badges:
+     - `cell-selected`: 2px emerald outline with active coordinates.
+     - `cell-has-slot`: Staged or committed semantic slot override (`{{instructor}}`, `{{course_code}}`, etc.).
+     - `cell-is-roster`: Repeating student roster table topology.
+     - `cell-is-signatory`: Discovered footer signatory block anchor.
+     - `cell-continuation`: Merged continuation cell with reduced opacity.
+
+2. **Cell Inspector & Slot Binding (`#slotMapperInspector`)**:
+   - Displays cell coordinates `[row, col]`, span topology (`rowspan x colspan`), and discovered heuristic role.
+   - Allows users to bind standard semantic slots (`instructor`, `course_code`, `section`, `room`, etc.) or custom token identifiers.
+   - Configures exact injection strategies: `exact_cell`, `cell_right`, `cell_below`, `colon_value`, or `placeholder`.
+   - Persists cleanly via `save_template_slot_overrides(file_path, overrides_dict)` and connects dynamically to `DynamicDocumentRenderer`.
+
+---
+
+## 🔍 Pre-Flight Sample Document Preview Modal (`#modalPreflightPreviewBackdrop`)
+
+Provides an in-memory document synthesis preview before launching a complete batch:
+
+1. **Dynamic Font Scaling Badge (`#previewFontScalingBadge`)**:
+   - Real-time tier resolution based on student count:
+     - `<= 30` students &rarr; `8pt Tier` (Emerald badge)
+     - `31 - 35` students &rarr; `7pt Tier` (Amber badge)
+     - `> 35` students &rarr; `6pt Tier` (Rose badge)
+2. **Pre-Flight Section Card (`#previewSectionInfoCard`)**:
+   - Displays target Course & Section, Schedule Code, Subject Name, Instructor, and verified Student Count.
+3. **Injected Semantic Fields Table (`#previewResolvedSlotsTable`)**:
+   - Displays exact field names and their dynamically resolved values.
+4. **Sample Roster Table (`#previewRosterTable`)**:
+   - Previews the first 10 student records (Number, Student ID, Name, Gender) mapped to template columns.
+5. **Signatory Chain Hierarchy (`#previewSignatoriesList`)**:
+   - Previews the resolved N-tier organizational hierarchy (Instructor &rarr; Dept Chair &rarr; College Dean).
+
+---
+
+## ⏱️ Batch Progress, Cooperative Cancellation & Headless PDF Export
+
+1. **Determinate Progress Telemetry (`#progressContainer`)**:
+   - ARIA progressbar compliance: `role="progressbar"`, `aria-valuemin="0"`, `aria-valuemax="100"`, and live `aria-valuenow`.
+   - Dual-channel telemetry: PyWebView event push via `window.onGenerationProgress` combined with 350ms cooperative polling of `get_generation_progress()`.
+   - Real-time status display: `[X/Y] Generating <filename>...` with active stopwatch elapsed timer (`#progressElapsedTimer`).
+
+2. **Cooperative Cancellation (`#btnCancelGeneration`)**:
+   - Mid-batch cancellation checked between document renders.
+   - Halted state safely preserves already generated documents in the output directory.
+
+3. **Optional Headless PDF Export (`#checkExportPdf`)**:
+   - Toggleable pipeline step converting generated `.docx` files into a dedicated `PDF_Submissions/` subfolder.
+   - Powered by `PdfExporter` supporting `docx2pdf` (Windows COM) and LibreOffice (`soffice --headless`) with graceful fallback.
+
 
 
 

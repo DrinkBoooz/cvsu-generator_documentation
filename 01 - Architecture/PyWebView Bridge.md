@@ -6,7 +6,7 @@ tags:
   - pywebview
   - ipc
 status: active
-last_modified: 2026-10-02
+last_modified: 2026-10-16
 source_of_truth:
   - modules/common/preferences_manager.py
   - executable_test/api/__init__.py
@@ -134,13 +134,15 @@ Utility functions: `sanitize_filename(filename)`, `get_resource_path(relative_pa
 | `get_custom_templates()` | Returns list of registered custom templates |
 | `toggle_custom_template(template_id, enabled)` | Enables or disables a custom template |
 | `delete_custom_template(template_id)` | Removes registration and deletes the file |
+| `get_template_grid_preview(file_path, max_rows=15)` | Returns lightweight 2D virtual grid serialization of template tables via `DocxGridTable` (or `openpyxl`), including spans, cell text, continuation flags, and bound semantic roles |
+| `save_template_slot_overrides(file_path, overrides_dict)` | Persists user-defined cell coordinate overrides into template recipes and updates `TemplateManifest.apply_slot_overrides` for active generation |
 
 ### Dynamic Template Manifest & SHA-256 Caching Pipeline
 
 Custom template inspection connects the frontend to `DeterministicTemplateAnalyzer`:
 1. **Thread-Safe Caching**: Templates are fingerprinted via SHA-256 and indexed by `(abs_path, mtime, size)`. Subsequent inspections of unchanged files bypass XML parsing in < 1ms.
 2. **Payload Enrichment**: Returns `manifest_summary` containing `is_ready` status, detected `slots` (field names, types, targets), `roster_table` topology (capacity, first data row, columns), and actionable `diagnostics`.
-3. **Execution Routing**: Custom templates registered through the bridge are executed dynamically via `DynamicDocumentRenderer` with automatic font scaling ladders and bullet preservation.
+3. **Execution Routing & Visual Overrides**: Custom templates registered through the bridge are executed dynamically via `DynamicDocumentRenderer` with automatic font scaling ladders and bullet preservation. User-defined cell slot overrides from the Visual Slot Mapper override heuristic detections cleanly.
 
 
 ---
@@ -161,11 +163,12 @@ Custom template inspection connects the frontend to `DeterministicTemplateAnalyz
 
 The generation mixin is the most operationally significant component. It implements the full thread lifecycle.
 
-### `run_generation(type_overrides, date_overrides, class_filter, engine_filter, roster_configs)`
+### `run_generation(type_overrides, date_overrides, class_filter, engine_filter, roster_configs, export_pdf=False)`
 
 **Pre-flight guards** (executed synchronously before thread spawn):
 1. Acquires `self._lock` — returns error if already processing.
 2. Validates that `schedule_path`, `rosters`, and `output_dir` are all set.
+3. Resets `self._generation_progress` tracking snapshot.
 
 **Thread spawn pattern:**
 ```python
@@ -178,7 +181,7 @@ def _progress_hook(info):
     self._window.evaluate_js(js_code)
 
 def _thread_target():
-    results = process_all(...)
+    results = process_all(..., export_pdf=export_pdf)
     # On completion:
     js_code = f"if (window.onGenerationComplete) window.onGenerationComplete({json.dumps(payload)}, {json.dumps(active_gen_id)});"
     self._window.evaluate_js(js_code)
@@ -187,9 +190,34 @@ threading.Thread(target=_thread_target, daemon=True).start()
 return None  # synchronous return; JS callback signals completion
 ```
 
+### `preview_sample_document(payload)`
+
+Performs an in-memory pre-flight synthesis of the first detected class section and roster without writing files to disk.
+- Resolves template slots (`instructor`, `course_code`, `section`, `schedule_code`, `semester`, etc.).
+- Calculates dynamic 3-tier font scaling:
+  - `<= 30` students &rarr; `8pt`
+  - `31 - 35` students &rarr; `7pt`
+  - `> 35` students &rarr; `6pt`
+- Returns structured payload: `{status: "success", student_count, active_font_pt, resolved_slots, sample_roster_rows, organizational_context, signatory_chain}`.
+
+### `get_generation_progress()`
+
+Thread-safe polling endpoint returning the latest batch progress snapshot:
+```json
+{
+    "status": "idle | running | cancelled | completed | error",
+    "current_index": 2,
+    "total_count": 8,
+    "percent": 25,
+    "current_file_label": "BSCS 3-1 ATTENDANCE_October_November.docx",
+    "current_class": "BSCS 3-1",
+    "error": null
+}
+```
+
 ### `cancel_generation()`
 
-Sets `self._cancel_event` under `self._lock`. The orchestrator polls this event at the start of each class iteration and each document step. Returns immediately; cancellation propagates asynchronously.
+Sets `self._cancel_event` under `self._lock` and sets `self._generation_progress["status"] = "cancelled"`. The orchestrator polls this event at the start of each class iteration and each document step. Returns immediately; cancellation propagates asynchronously.
 
 ### Telemetry Contracts
 
