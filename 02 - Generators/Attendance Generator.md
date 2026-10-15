@@ -10,6 +10,8 @@ status: active
 last_modified: 2026-10-15
 source_of_truth:
   - modules/generators/attendance_gen.py
+  - modules/parsers/calendar_resolver.py
+  - modules/models/calendar.py
   - modules/generators/dynamic_renderer.py
   - modules/parsers/docx_grid_table.py
   - modules/parsers/template_analyzer.py
@@ -139,6 +141,75 @@ The domain scheduling calculations remain preserved in the generator layer:
    - $29–33$ chars: 6.5pt (`sz="13"`)
    - $34–37$ chars: 5.5pt (`sz="11"`, unbold)
    - $\ge 38$ chars: 5pt (`sz="10"`, unbold)
+
+---
+
+## 📅 100% Offline 3-Layer Dynamic Academic Calendar & Suspension Engine
+
+To dynamically accommodate changing national/provincial holidays, university academic calendar milestones (e.g. Midterm/Final examination weeks), and abrupt `#WalangPasok` typhoon or transport suspensions without brittle hardcoded year tables, the generator integrates a 3-layer resolution pipeline (`modules/parsers/calendar_resolver.py` and `modules/models/calendar.py`).
+
+```mermaid
+flowchart TD
+    subgraph L1["Layer 1: Algorithmic Recurrence Rules"]
+        R1["Fixed Date (e.g. 09-02 Cavite Day, 06-12 Independence Day)"]
+        R2["Nth Weekday (e.g. Last Monday of August - Heroes Day)"]
+    end
+    
+    subgraph L2["Layer 2: Announcements & iCalendar (.ics)"]
+        A1["RFC 5545 .ics Files (VEVENT, DTSTART/DTEND)"]
+        A2["Smart Announcement Parser (Memos, CSV, #WalangPasok)"]
+    end
+    
+    subgraph L3["Layer 3: Interactive Date Overrides"]
+        O1["Manual Toggles (ACTIVE, HOLIDAY, SUSPENDED, EXAM, EVENT)"]
+    end
+
+    L1 --> RESOLVE["CalendarResolver (Precedence: Layer 3 > Layer 2 > Layer 1 > Default ACTIVE)"]
+    L2 --> RESOLVE
+    L3 --> RESOLVE
+
+    RESOLVE --> DECISION{"Date Working?"}
+    DECISION -->|Yes: ACTIVE| ACTIVE_COL["Render Active Meeting Column"]
+    DECISION -->|No: EXCEPTION| MODE_BRANCH{"Matrix Policy Mode"}
+
+    MODE_BRANCH -->|Mode A: OMIT_COLUMN| OMIT["Omit Date from Column Sequence"]
+    MODE_BRANCH -->|Mode B: STAMP_COLUMN| STAMP["Keep Header Column & Stamp Cell Tag via _format_stamp_cell"]
+```
+
+### 1. Three Resolution Layers
+
+1. **Layer 1 — Algorithmic Recurrence Rule Engine**:
+   - Computes recurring holidays for *any* target year (`year: int`) without maintaining static year-by-year tables.
+   - Supports `fixed_date` rules (e.g. `01-01` New Year, `04-09` Araw ng Kagitingan, `05-01` Labor Day, `06-12` Independence Day, `08-21` Ninoy Aquino Day, `09-02` Cavite Day, `11-30` Bonifacio Day, `12-25` Christmas Day, `12-30` Rizal Day).
+   - Supports `nth_weekday` rules with fractional negative indexing (e.g. `month=8, weekday=0, nth=-1` for the *Last Monday of August* — National Heroes Day).
+   - Rules are fully user-customizable, serializable to/from JSON, and leap-year invariant.
+
+2. **Layer 2 — RFC 5545 iCalendar (`.ics`) & Smart Announcement Memo/CSV Parser**:
+   - **Offline `.ics` Parser (`parse_ics_content`)**: Standard library RFC 5545 parser extracting `VEVENT` blocks, parsing inclusive multi-day `DTSTART`/`DTEND` boundaries, unfolding multi-line summary strings, and normalizing summaries into `CalendarException` objects.
+   - **Smart Announcement Parser (`parse_announcement_lines`)**: Parses natural memo strings and CSV text (e.g., `"Oct 20-24, 2026: Midterm Examination Week"`, `"Nov 2, 2026 - All Souls' Day"`, `"Aug 24, 2026: Typhoon Kristine Suspension #WalangPasok"`), classifying categories into `HOLIDAY`, `SUSPENDED`, `EXAM`, or `EVENT`.
+
+3. **Layer 3 — Per-Date Interactive Overrides**:
+   - Faculty members can manually toggle individual meeting dates via the UI calendar strip (`ACTIVE`, `HOLIDAY`, `SUSPENDED`, `EXAM`, `EVENT`).
+   - Overrides strictly supersede Layers 1 and 2, allowing faculty to declare make-up/asynchronous class sessions on standard holidays or flag campus-specific suspensions.
+
+### 2. Two Attendance Matrix Rendering Modes
+
+The attendance engine supports two configurable matrix rendering policies:
+
+| Mode | Identifier | Header Row Behavior | Student Cell Matrix Behavior | Use Case |
+| :--- | :--- | :--- | :--- | :--- |
+| **Mode A** | `OMIT_COLUMN` *(Default)* | Excludes the non-working date from the column sequence completely. | Only active teaching sessions occupy matrix columns; column width is maximized across active sessions. | Standard institutional compliance when non-working days must not appear on attendance rosters. |
+| **Mode B** | `STAMP_COLUMN` | Retains the meeting date in Header Rows 0 and 1. | Renders a compact status stamp (`HOLIDAY`, `SUSP.`, `EXAM`, `EVENT`) across student rows via `_format_stamp_cell(tc, tag, date_w)`. | Formal documentation showing scheduled sessions were superseded by institutional holidays or weather suspensions. |
+
+### 3. OpenXML Stamp Cell Formatting (`_format_stamp_cell`)
+When `STAMP_COLUMN` is active:
+- Emits centered `<w:jc w:val="center"/>` text runs with bold emphasis.
+- Preserves all physical OpenXML cell borders (`<w:tcBorders>`) inherited from template prototypes.
+- Dynamically auto-scales font sizes based on column width `DATE_W`:
+  - `DATE_W >= 200`: 8pt (`sz="16"`)
+  - `DATE_W >= 150`: 7pt (`sz="14"`)
+  - `DATE_W >= 100`: 6pt (`sz="12"`)
+  - `DATE_W < 100`: 5pt (`sz="10"`)
 
 ---
 

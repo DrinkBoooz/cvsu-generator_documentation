@@ -10,6 +10,8 @@ last_modified: 2026-10-15
 source_of_truth:
   - attendance/
   - modules/generators/attendance_gen.py
+  - modules/parsers/calendar_resolver.py
+  - modules/models/calendar.py
   - modules/parsers/docx_grid_table.py
   - modules/parsers/template_analyzer.py
   - modules/services/orchestrator.py
@@ -60,6 +62,30 @@ Both templates consist of two primary tables:
    - **Column 3**: Student Number. Fixed percentage width: `499 pct`.
    - **Columns 4 to 4+N**: Calendar Meeting Dates. Allocated from the remaining date pool (`5000 - 2577 = 2423 pct`), divided evenly across session count (`DATE_W = 2423 // n_date_cols`).
    - **Summary Columns**: Total Present (`212 pct`), Total Absent (`208 pct`), Remarks (`133 pct`).
+
+---
+
+## 🏛️ Academic Calendar & Holiday Exception Modes
+
+When the attendance generator renders the dynamic date columns (Columns 4 through 4+N), it evaluates each candidate class date against the 3-Layer Calendar Resolver (`modules/parsers/calendar_resolver.py`):
+
+### 1. Matrix Policy Modes
+- **`OMIT_COLUMN` (Default)**: Non-working holidays, `#WalangPasok` weather/transport suspensions, and campus events are excluded from the column sequence entirely. Only active class meeting sessions form date columns. This maximizes the physical column width `DATE_W` for active sessions.
+- **`STAMP_COLUMN`**: The scheduled date remains in the column sequence in Header Rows 0 and 1, and the student data cells below that date are stamped with an abbreviated status tag:
+  - `HOLIDAY` (National & Cavite provincial holidays)
+  - `SUSP.` (Typhoon, transport, or institutional class suspensions)
+  - `EXAM` (Midterm or Final examination weeks)
+  - `EVENT` (University foundation week, sports fest, student convocation)
+
+### 2. OpenXML Cell Border & Font Preservation
+In `STAMP_COLUMN` mode, cell styling is rendered via `_format_stamp_cell(tc, tag, date_w)`:
+- Preserves template physical border elements (`<w:tcBorders>`) inherited from the prototype student cell.
+- Centers text alignment via `<w:jc w:val="center"/>`.
+- Applies responsive 4-tier font auto-scaling to prevent cell overflow in multi-session weeks:
+  - `DATE_W >= 200`: 8pt (`sz="16"`, bold)
+  - `DATE_W >= 150`: 7pt (`sz="14"`, bold)
+  - `DATE_W >= 100`: 6pt (`sz="12"`, bold)
+  - `DATE_W < 100`: 5pt (`sz="10"`, bold)
 
 ---
 

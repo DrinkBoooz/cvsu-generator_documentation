@@ -5,10 +5,11 @@ tags:
   - guide
   - user-manual
 status: active
-last_modified: 2026-09-18
+last_modified: 2026-10-15
 source_of_truth:
   - executable_test/README.md
   - executable_test/ui.html
+  - modules/parsers/calendar_resolver.py
 ---
 
 # User Manual
@@ -64,3 +65,32 @@ Click **"Browse Path"** and choose any directory on your drive where the output 
 
 ### Step 6: Initialize Workflow
 Click **"Initialize Workflow"**. Real-time progress is displayed with animated status indicators. You can click **"Cancel Generation"** at any moment to abort processing safely. Output files that are already completed will remain intact on your drive.
+
+---
+
+## 📅 Academic Calendar, Holiday & Suspension Settings
+
+The application features an interactive **Academic Calendar & Suspension Engine** (accessible via **Settings ⚙️ → 📅 Academic Calendar**) that eliminates static calendar assumptions and dynamically resolves national, provincial, and unexpected weather interruptions.
+
+### 1. Attendance Matrix Column Policy
+- **Omit Date Column (`OMIT_COLUMN`, Default)**: Excludes non-working days from the monthly attendance sheet so that only active teaching days receive columns.
+- **Keep Column & Stamp Label (`STAMP_COLUMN`)**: Keeps the scheduled meeting date in the header row and stamps compact status tags (`HOLIDAY`, `SUSP.`, `EXAM`, `EVENT`) in student cells with OpenXML cell border preservation and auto-scaled font.
+
+### 2. Smart Memo Announcement & .ics Importer
+Faculty can import calendar exceptions without manually typing dates:
+- **Paste Memo Text**: Paste official OvPAA circulars, PDRRMO weather advisories, or hashtag announcements into the text box:
+  ```text
+  Oct 20-24, 2026: Midterm Examination Week
+  Nov 2, 2026 - All Souls' Day
+  Aug 24, 2026: Typhoon Kristine Suspension #WalangPasok
+  ```
+  Click **"📥 Parse Announcement"** to automatically parse dates, ranges, and categories.
+- **Import .ics Calendar**: Click **"📅 Import .ics Calendar"** to load standard iCalendar files offline.
+
+### 3. Interactive Meeting Dates Strip
+- Select your target **Year**, **Semester**, and **Class Pattern** (e.g. Monday/Thursday, Tuesday/Friday, Wednesday, Saturday).
+- The dynamic date strip previews all candidate meeting dates for the semester.
+- **1-Click / Keyboard Cycling**: Click or press <kbd>Space</kbd> / <kbd>Enter</kbd> on any date pill to cycle its status:
+  $$\text{🟢 Active} \longrightarrow \text{🔴 Holiday} \longrightarrow \text{🟠 Suspended} \longrightarrow \text{🟣 Exam Week} \longrightarrow \text{🔵 Campus Event}$$
+- Changes are saved immediately and applied whenever attendance sheets are generated.
+
