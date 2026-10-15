@@ -7,16 +7,19 @@ tags:
   - configuration
   - preferences
 status: active
-last_modified: 2026-10-03
+last_modified: 2026-10-16
 source_of_truth:
+  - modules/models/workspace.py
   - modules/common/config_manager.py
   - modules/common/preferences_manager.py
   - modules/services/template_set_manager.py
   - executable_test/api/config.py
+  - executable_test/js/workspaces.js
   - executable_test/js/theme.js
   - executable_test/js/settings.js
   - executable_test/js/app.js
   - tests/test_persistent_state_authority_inventory.py
+  - tests/test_workspaces_smart_ingest_and_diff.py
 ---
 
 # Persistent State Architecture
@@ -85,6 +88,7 @@ State in the repository is strictly partitioned into the **Four Canonical Model 
      - `%APPDATA%/CVSU_Generators/custom_templates/templates.json` and `*.docx` (owned and written exclusively by `ParserConfigManager` via `save_custom_template()`, `toggle_custom_template()`, `delete_custom_template()`).
      - `%APPDATA%/CVSU_Generators/template_sets/<set_id>/manifest.json` and `templates/` (owned and written exclusively by `TemplateSetManager` via `_save_manifest()` and `delete_template_set()`).
      - `%APPDATA%/CVSU_Generators/active_template_set.json` (owned and written exclusively by `TemplateSetManager` via `activate_template_set()`).
+     - `%APPDATA%/CVSU_Generators/workspaces/<workspace_id>.json` (owned and written exclusively by `ParserConfigManager` via `save_workspace()`, `delete_workspace()`, and `import_workspace_file()`). Portable snapshots exportable as `.cvsu-workspace.json` capturing full multi-semester state (schedule path, roster mappings, output dir, org preset, calendar config, active template set).
 2. **User Preferences (Model C)**:
    - Controls personal ergonomic experience (theme, accessibility motion, accessibility transparency).
    - **Canonical Store & Owner**:
