@@ -11,6 +11,7 @@ last_modified: 2026-10-15
 source_of_truth:
   - modules/generators/generic_doc_gen.py
   - modules/generators/dynamic_renderer.py
+  - modules/models/organization.py
   - modules/parsers/docx_grid_table.py
   - modules/parsers/template_analyzer.py
   - modules/generators/document_generator.py
@@ -24,6 +25,7 @@ source_of_truth:
   - modules/parsers/semantic_registry.py
   - tests/test_deterministic_template_analyzer.py
   - tests/test_dynamic_renderer_resilience.py
+  - tests/test_dynamic_org_and_signatories.py
 ---
 
 # Generic Document Generator

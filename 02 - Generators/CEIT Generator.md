@@ -9,7 +9,9 @@ status: active
 last_modified: 2026-10-15
 source_of_truth:
   - modules/generators/ceit_gen.py
+  - modules/generators/document_generator.py
   - modules/generators/dynamic_renderer.py
+  - modules/models/organization.py
   - modules/parsers/docx_grid_table.py
   - modules/parsers/template_analyzer.py
   - modules/services/generator_factory.py
@@ -19,6 +21,7 @@ source_of_truth:
   - modules/models/recipe.py
   - tests/test_golden_parity.py
   - tests/test_dynamic_renderer_resilience.py
+  - tests/test_dynamic_org_and_signatories.py
   - templates/
 ---
 
@@ -50,6 +53,7 @@ classDiagram
         +recipe: ValidatedTemplateRecipe
         +fill_header(body, info: ClassInfo)
         +fill_table(body, info: ClassInfo)
+        +fill_signatories(body, info: ClassInfo, config: dict)
         #_fill_student_row(cells, idx, name, stnum)
         +generate(info: ClassInfo, output_path: str)
     }
@@ -129,6 +133,13 @@ Implemented in `modules/generators/dynamic_renderer.py`:
 - **Native List Auto-Numbering Preservation**: Detects and retains native `<w:numPr>` numbering in student index columns without manual literal numbering.
 - **Perturbation Resilience**: Proven immune to structural shifts (decoy tables, prepended warning paragraphs, shifted table indices) by `tests/test_dynamic_renderer_resilience.py`.
 - **Golden-Master Parity**: Validated by `tests/test_golden_parity.py` against reference outputs across all 7 standard CEIT forms.
+
+### 4. Dynamic N-Tier Signatory Chain Integration
+All academic form generators inherit signatory-chain handling via `DocumentGenerator.fill_signatories(body, info, config)` and `DynamicDocumentRenderer._populate_signatories_docx`:
+- **Deterministic Slot Binding**: Footer tables and signature blocks are scanned for anchor roles (`Prepared by`, `Reviewed by`, `Recommending Approval`, `Noted by`, `Approved by`, `Certified Correct`).
+- **Flexible Hierarchy**: Works seamlessly across Main Campus units (Instructor -> Dept. Chair -> College Dean) and Satellite Campuses (Instructor -> Dept. Chair / Program Coordinator -> Campus Administrator).
+- **Run Formatting & Font Scaling**: Values are injected into run elements `<w:t>` while preserving existing font faces, bolding, underline attributes, and cell alignments. Names exceeding 28 characters undergo automatic font scaling to prevent signature line wrapping.
+- **Config & Legacy Fallback**: Resolves signatories by exact `slot.bound_key` (e.g. `department_chair`, `college_dean`, `campus_admin`), with robust fallback chains ensuring 100% backward compatibility for pre-existing configuration profiles.
 
 ---
 

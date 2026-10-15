@@ -11,12 +11,14 @@ last_modified: 2026-10-15
 source_of_truth:
   - modules/parsers/docx_grid_table.py
   - modules/parsers/template_analyzer.py
+  - modules/models/organization.py
   - modules/parsers/semantic_registry.py
   - modules/models/recipe.py
   - modules/parsers/recipe_validator.py
   - modules/parsers/template_inspector.py
   - modules/services/template_recipe_service.py
   - modules/generators/document_generator.py
+  - modules/generators/dynamic_renderer.py
   - modules/generators/field_resolver.py
   - modules/generators/ceit_gen.py
   - modules/generators/grade_gen.py
@@ -307,3 +309,19 @@ A pure offline, deterministic template introspection engine that extracts a stru
 - **Dynamic Semantic Slots**: Automatically detects metadata labels (Instructor, Course/Section, Schedule Code, Subject, Time/Days/Room, Semester/AY, Month/Year, Date) and resolves their target coordinates via `DocxGridTable`.
 - **Dynamic Repeating Topologies**: Automatically discovers repeating tables (student rosters, attendance grids, exam returns), detecting exact header row bounds (e.g. multi-row headers created by vertical merges), first data row index, cloneable template row, capacity limit, and column roles (`name`, `student_number`, `index`, `signature`).
 - **SHA-256 Fingerprint**: Computes a deterministic content hash for high-performance manifest caching.
+- **Dynamic Organizational Topology (`OrganizationalContext`)**:
+  - Deterministically extracts institutional hierarchy from banner paragraphs and header tables:
+    - `institution`: Defaults to `"CAVITE STATE UNIVERSITY"`.
+    - `campus`: Introspects Main Campus (`"Don Severino de las Alas Campus"`, `"Main Campus"`) or Satellite Campuses (`"CvSU - Tanza Campus"`, `"Rosario Campus"`, `"Naic Campus"`, `"Imus Campus"`, etc.).
+    - `college`: Discovers collegiate units (`"COLLEGE OF ENGINEERING AND INFORMATION TECHNOLOGY"`, `"GRADUATE SCHOOL AND OPEN LEARNING COLLEGE"`, `"COLLEGE OF ARTS AND SCIENCES"`, etc.). Automatically set to `None` for satellite campuses operating without dedicated college divisions.
+    - `department`: Detects department units (`"Department of Information Technology"`, `"Department of Engineering"`).
+    - `confidence`: Confidence score based on discovered anchors.
+- **Dynamic N-Tier Signatory Slot Discovery (`SignatorySlot`)**:
+  - Scans footer tables, signature rows, trailing paragraphs, and Excel worksheets for official approval anchors:
+    - Anchor patterns: `"Prepared by:"`, `"Reviewed by:"`, `"Recommending Approval:"`, `"Noted by:"`, `"Approved by:"`, `"Certified Correct:"`.
+    - Coordinates captured: `(table_index, row, col)` or `target_cell_coord` for Excel, plus associated title rows.
+    - Title deduction: Auto-maps to standardized titles (`Instructor`, `Department Chairperson`, `College Dean`, `Campus Administrator`, `Program Coordinator`).
+    - Bound keys: Automatically links to context attributes (`prepared_by`, `department_chair`, `college_dean`, `campus_administrator`, `program_coordinator`).
+- **Shareable Organizational Presets (`.cvsu-org.json`)**:
+  - Portable, declarative JSON configurations representing an academic unit's hierarchy and signatory chain.
+  - Bridge APIs in `ConfigMixin` (`export_org_preset`, `import_org_preset`) enforce strict path validation (rejection of null bytes, non-JSON extensions, and directory escapes) and schema validation (`OrganizationPreset.validate()`).
