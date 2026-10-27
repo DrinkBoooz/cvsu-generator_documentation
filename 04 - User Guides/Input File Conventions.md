@@ -5,7 +5,7 @@ tags:
   - guide
   - input-files
 status: active
-last_modified: 2026-10-16
+last_modified: 2026-10-27
 source_of_truth:
   - modules/parsers/schedule_parser.py
   - modules/parsers/roster_parser.py
@@ -112,6 +112,10 @@ To eliminate re-configuring 15+ settings when switching between semesters or man
   - Active custom template set
 - **1-Click Switching**:
   - The top navigation bar includes a workspace selector (`#selectWorkspace`). Selecting a semester immediately restores the entire workspace state.
+- **Updating Active Workspace vs. Saving as New**:
+  - **In-Place Update**: When an active semester workspace is loaded, clicking the header **Save** button (`#btnSaveWorkspace`) or clicking **Update Active** in the Workspace Manager modal directly updates and overwrites the active workspace snapshot in-place with zero prompts.
+  - **Save as New Snapshot**: When working on the Default Workspace, clicking **Save** prompts for a new workspace name. Additionally, within the Workspace Manager modal (`#modalWorkspaceBackdrop`), the "Save As New Workspace Snapshot" section allows typing a new name and clicking **Save as New** (`#btnSaveCurrentWorkspace`) at any time without overwriting the current workspace.
 - **Portability & Backup (`.cvsu-workspace.json`)**:
   - Workspaces can be exported as standalone `.cvsu-workspace.json` files via the Workspace Manager (`#modalWorkspaceBackdrop`) and shared or transferred across machines.
+
 
