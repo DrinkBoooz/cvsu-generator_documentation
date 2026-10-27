@@ -539,9 +539,9 @@ Provides an in-memory document synthesis preview before launching a complete bat
    - Halted state safely preserves already generated documents in the output directory.
 
 3. **Optional Headless PDF Export (`#checkExportPdf`)**:
-   - Toggleable pipeline step converting generated `.docx` files into a dedicated `PDF_Submissions/` subfolder.
-   - Powered by `PdfExporter` supporting native Windows Microsoft Word COM automation (`win32com.client`) with single-session batching, `docx2pdf`, and LibreOffice (`soffice --headless`) with graceful non-fatal fallback.
-   - Preserves apartment threading integrity via `pythoncom.CoInitialize()` and `pythoncom.CoUninitialize()` and automatically maps converted PDFs into the UI artifact tree per class section.
+   - Toggleable pipeline step converting generated `.docx` files into class-specific folders (`CEIT_Forms/` and `Attendance/`) alongside chronologically merged attendance and academically ordered CEIT bundles.
+   - Powered by `PdfExporter` supporting native Windows Microsoft Word COM automation via sandboxed PowerShell (out-of-process, zero external Python C-dependencies, immune to RPC teardown crashes in Python 3.14) and in-process `win32com.client` with persistent batching, `docx2pdf`, and LibreOffice (`soffice --headless`) with graceful non-fatal fallback.
+   - Automatically surfaces skipped converter notices in completion toasts and UI metrics pills when no supported converter binary is detected.
 
 
 
