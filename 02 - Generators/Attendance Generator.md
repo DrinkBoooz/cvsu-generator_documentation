@@ -344,3 +344,40 @@ return gen.generate(...)
   - `tests/test_invalid_templates.py`
   - `tests/test_golden_parity.py`
   - `tests/test_dynamic_renderer_resilience.py`
+
+---
+
+## 4. Calendar Exceptions & Single-Page Vertical Merging
+
+### Architectural Goal: Strict Single-Page Table Constraint
+Standard CvSU attendance sheets accommodate up to 40 enrolled students. When text marks (such as `SUSP.`, `HOLIDAY`, `LEAVE`, or `ADM`) were previously rendered row-by-row into all 40 student cells, Word's paragraph box calculation and line-spacing rules caused row heights to expand incrementally. This frequently pushed the final 2–3 rows of a 40-student table onto a second page.
+
+### Vertical Column Merging Mechanics (`<w:vMerge>`)
+In `STAMP_COLUMN` mode, `AttendanceGenerator` merges non-working date columns vertically across the entire student roster (rows 1 through 40):
+
+1. **Student Row 1 (Header Cell)**:
+   - Configures `<w:vMerge w:val="restart"/>` in `tcPr`.
+   - Centers content vertically with `<w:vAlign w:val="center"/>`.
+   - Sets vertical bottom-to-top text direction via `<w:textDirection w:val="btLr"/>`.
+   - Formats the status code (e.g. `SUSP.`, `HOLIDAY`) with bold 9pt font (`sz="18"`), subtle muted gray `#4B5563`, and zero paragraph spacing (`spacing before="0" after="0"`).
+2. **Student Rows 2 through 40 (Continuation Cells)**:
+   - Configures continuation `<w:vMerge/>` without a `w:val` attribute.
+   - Clears text content (`""`) and removes paragraph margins.
+   - Word renders the column as a single seamless unified vertical strip spanning rows 1 to 40, strictly keeping the table layout on **Page 1**.
+
+```mermaid
+flowchart TD
+    subgraph Attendance Table
+    R0["Row 0: Header (Date: Aug 24)"]
+    R1["Row 1: Student 1 Cell<br/><code>vMerge='restart'</code> + <code>btLr</code> vertical text 'SUSP.'"]
+    R2["Row 2: Student 2 Cell<br/><code>vMerge</code> (empty)"]
+    R3["Row ...: Student ... Cells<br/><code>vMerge</code> (empty)"]
+    R40["Row 40: Student 40 Cell<br/><code>vMerge</code> (empty)"]
+    end
+
+    R0 --> R1
+    R1 --- R2
+    R2 --- R3
+    R3 --- R40
+```
+
