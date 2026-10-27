@@ -7,7 +7,7 @@ tags:
   - docx
   - recipes
 status: active
-last_modified: 2026-10-15
+last_modified: 2026-10-27
 source_of_truth:
   - modules/generators/attendance_gen.py
   - modules/parsers/calendar_resolver.py
@@ -189,19 +189,53 @@ flowchart TD
    - **Smart Announcement Parser (`parse_announcement_lines`)**: Parses natural memo strings and CSV text (e.g., `"Oct 20-24, 2026: Midterm Examination Week"`, `"Nov 2, 2026 - All Souls' Day"`, `"Aug 24, 2026: Typhoon Kristine Suspension #WalangPasok"`), classifying categories into `HOLIDAY`, `SUSPENDED`, `EXAM`, or `EVENT`.
 
 3. **Layer 3 — Per-Date Interactive Overrides**:
-   - Faculty members can manually toggle individual meeting dates via the UI calendar strip (`ACTIVE`, `HOLIDAY`, `SUSPENDED`, `EXAM`, `EVENT`).
-   - Overrides strictly supersede Layers 1 and 2, allowing faculty to declare make-up/asynchronous class sessions on standard holidays or flag campus-specific suspensions.
+   - Faculty members can manually toggle individual meeting dates via the UI calendar strip (`ACTIVE`, `HOLIDAY`, `SUSPENDED`, `EXAM`, `EVENT`, `INSTRUCTOR_LEAVE`, `ADM_ASYNC`).
+   - Overrides strictly supersede Layers 1 and 2, allowing faculty to declare make-up/asynchronous class sessions on standard holidays, record approved personal/medical leaves, or flag campus-specific suspensions.
 
-### 2. Two Attendance Matrix Rendering Modes
+### 2. ⏰ Time-Aware Slot Sensitivity & Partial-Day Suspensions
+
+Institutional weather and disaster directives frequently mandate class suspensions starting at midday or early afternoon (e.g., *Aug 14, 2026: Executive Order No. 44 suspending classes from 12:00 NN onwards due to Habagat*; *Aug 28, 2026: Heavy rainfall advisory suspending classes from 1:00 PM onwards*). 
+
+Treating partial suspensions as all-day cancellations erroneously wipes out valid morning class meetings. The calendar engine evaluates schedule slot disruption via **minute-level interval overlap**:
+
+- **Schedule Time Parser (`parse_class_time_range`)**: Extracts start and end minutes from schedule strings across canonical formats:
+  - `"07:00-10:00AM"` $\rightarrow (420, 600)$
+  - `"1:00-4:00PM"` $\rightarrow (780, 960)$
+  - `"12:00NN-3:00PM"` $\rightarrow (720, 900)$
+  - Multi-meeting schedules: `"M: 7-10AM; W: 1-4PM"` dynamically matches the meeting slot corresponding to the target weekday.
+- **Time Scopes (`CalendarTimeScope`)**:
+  - `ALL_DAY` $(00:00 - 23:59)$: Full-day suspension; cancels all meetings.
+  - `MIDDAY_ONWARDS` $(12:00 - 23:59)$: Morning classes (e.g. 7:00–10:00 AM) remain `ACTIVE`; afternoon/evening classes become `SUSPENDED`.
+  - `AFTERNOON_1PM` $(13:00 - 23:59)$: Classes ending by 1:00 PM remain `ACTIVE`; afternoon classes become `SUSPENDED`.
+  - `MORNING_ONLY` $(00:00 - 12:00)$: Afternoon classes remain `ACTIVE`.
+  - `CUSTOM_TIME` $(start\_min, end\_min)$: Specific disruption window.
+- **Overlap Disruption Formula**:
+  $$\text{Disrupted} = \max(\text{class\_start}, \text{exc\_start}) < \min(\text{class\_end}, \text{exc\_end})$$
+  If false, the date remains `ACTIVE` for that class schedule slot, ensuring morning classes retain their attendance columns.
+
+### 3. 📋 Faculty Personal Leaves & Alternative Learning Modalities (ADM)
+
+In addition to standard holidays and weather suspensions, the engine models academic operational realities without code hardcoding:
+- **Instructor Personal Leaves (`INSTRUCTOR_LEAVE`)**: Represents official faculty leave of absence (e.g. Oct 7 and 9, 2026). In `STAMP_COLUMN` mode, student matrix cells are stamped with `"LEAVE"`. In `OMIT_COLUMN` mode, the date column is omitted.
+- **Alternative Delivery Modality (`ADM_ASYNC`)**: Represents university-wide or LGU-mandated shifts to asynchronous online/distance learning (e.g. Oct 14, 2026). Stamped with `"ADM"` across student matrix cells.
+
+### 4. 🏛️ Institutional Academic Calendar Presets
+
+To eliminate repetitive manual date configuration across faculty workstations, the engine includes built-in institutional presets (`modules/models/calendar.py`):
+- **CvSU Main Campus (Indang) — 1st Semester AY 2026–2027 Preset (`CVSU_INDANG_2026_PRESET`)**:
+  - Encapsulates all 15 confirmed Malacañang proclamations, Cavite provincial executive orders, LGU Indang advisories, and university memos between Aug 10 and Oct 27, 2026 (including Ninoy Aquino Day, Cavite Day, National Heroes Day, Habagat & tropical storm suspensions, Midterm Exams, and faculty leaves).
+- Accessible via bridge API: `get_calendar_presets()` and `load_calendar_preset(preset_id)` with single-click population into UI Tab 7.
+
+### 5. Two Attendance Matrix Rendering Modes
 
 The attendance engine supports two configurable matrix rendering policies:
 
 | Mode | Identifier | Header Row Behavior | Student Cell Matrix Behavior | Use Case |
 | :--- | :--- | :--- | :--- | :--- |
 | **Mode A** | `OMIT_COLUMN` *(Default)* | Excludes the non-working date from the column sequence completely. | Only active teaching sessions occupy matrix columns; column width is maximized across active sessions. | Standard institutional compliance when non-working days must not appear on attendance rosters. |
-| **Mode B** | `STAMP_COLUMN` | Retains the meeting date in Header Rows 0 and 1. | Renders a compact status stamp (`HOLIDAY`, `SUSP.`, `EXAM`, `EVENT`) across student rows via `_format_stamp_cell(tc, tag, date_w)`. | Formal documentation showing scheduled sessions were superseded by institutional holidays or weather suspensions. |
+| **Mode B** | `STAMP_COLUMN` | Retains the meeting date in Header Rows 0 and 1. | Renders a compact status stamp (`HOLIDAY`, `SUSP.`, `EXAM`, `EVENT`, `LEAVE`, `ADM`) across student rows via `_format_stamp_cell(tc, tag, date_w)`. | Formal documentation showing scheduled sessions were superseded by institutional holidays, weather suspensions, or leaves. |
 
-### 3. OpenXML Stamp Cell Formatting (`_format_stamp_cell`)
+### 6. OpenXML Stamp Cell Formatting (`_format_stamp_cell`)
 When `STAMP_COLUMN` is active:
 - Emits centered `<w:jc w:val="center"/>` text runs with bold emphasis.
 - Preserves all physical OpenXML cell borders (`<w:tcBorders>`) inherited from template prototypes.
