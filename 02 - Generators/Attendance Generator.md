@@ -359,7 +359,7 @@ In `STAMP_COLUMN` mode, `AttendanceGenerator` merges non-working date columns ve
    - Configures `<w:vMerge w:val="restart"/>` in `tcPr`.
    - Centers content vertically with `<w:vAlign w:val="center"/>`.
    - Sets vertical bottom-to-top text direction via `<w:textDirection w:val="btLr"/>`.
-   - Formats the status code (e.g. `SUSP.`, `HOLIDAY`) with bold 9pt font (`sz="18"`), subtle muted gray `#4B5563`, and zero paragraph spacing (`spacing before="0" after="0"`).
+   - Formats the descriptive status label (e.g. `Suspension (reason)`, `Holiday (reason)`, `Leave (reason)`, `ADM (reason)`) with bold 9pt font (`sz="18"`), subtle muted gray `#4B5563`, and zero paragraph spacing (`spacing before="0" after="0"`).
 2. **Student Rows 2 through 40 (Continuation Cells)**:
    - Configures continuation `<w:vMerge/>` without a `w:val` attribute.
    - Clears text content (`""`) and removes paragraph margins.
@@ -369,7 +369,7 @@ In `STAMP_COLUMN` mode, `AttendanceGenerator` merges non-working date columns ve
 flowchart TD
     subgraph Attendance Table
     R0["Row 0: Header (Date: Aug 24)"]
-    R1["Row 1: Student 1 Cell<br/><code>vMerge='restart'</code> + <code>btLr</code> vertical text 'SUSP.'"]
+    R1["Row 1: Student 1 Cell<br/><code>vMerge='restart'</code> + <code>btLr</code> vertical text 'Suspension (Typhoon Kristine)'"]
     R2["Row 2: Student 2 Cell<br/><code>vMerge</code> (empty)"]
     R3["Row ...: Student ... Cells<br/><code>vMerge</code> (empty)"]
     R40["Row 40: Student 40 Cell<br/><code>vMerge</code> (empty)"]
