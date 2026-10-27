@@ -114,7 +114,9 @@ To eliminate re-configuring 15+ settings when switching between semesters or man
   - The top navigation bar includes a workspace selector (`#selectWorkspace`). Selecting a semester immediately restores the entire workspace state.
 - **Updating Active Workspace vs. Saving as New**:
   - **In-Place Update**: When an active semester workspace is loaded, clicking the header **Save** button (`#btnSaveWorkspace`) or clicking **Update Active** in the Workspace Manager modal directly updates and overwrites the active workspace snapshot in-place with zero prompts.
-  - **Save as New Snapshot**: When working on the Default Workspace, clicking **Save** prompts for a new workspace name. Additionally, within the Workspace Manager modal (`#modalWorkspaceBackdrop`), the "Save As New Workspace Snapshot" section allows typing a new name and clicking **Save as New** (`#btnSaveCurrentWorkspace`) at any time without overwriting the current workspace.
+- **Deleting Workspaces**:
+  - Workspaces can be deleted via the Workspace Manager modal (`#modalWorkspaceBackdrop`) using either the **🗑️ Delete Active** button (`#btnDeleteActiveWorkspace`) in the active workspace banner or the individual **🗑️ Delete** button next to each saved snapshot in the list.
+  - A confirmation modal prevents accidental deletion. Deleting the active workspace safely unloads it and automatically returns the active session to the Default Workspace.
 - **Portability & Backup (`.cvsu-workspace.json`)**:
   - Workspaces can be exported as standalone `.cvsu-workspace.json` files via the Workspace Manager (`#modalWorkspaceBackdrop`) and shared or transferred across machines.
 
