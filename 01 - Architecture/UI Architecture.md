@@ -540,7 +540,8 @@ Provides an in-memory document synthesis preview before launching a complete bat
 
 3. **Optional Headless PDF Export (`#checkExportPdf`)**:
    - Toggleable pipeline step converting generated `.docx` files into a dedicated `PDF_Submissions/` subfolder.
-   - Powered by `PdfExporter` supporting `docx2pdf` (Windows COM) and LibreOffice (`soffice --headless`) with graceful fallback.
+   - Powered by `PdfExporter` supporting native Windows Microsoft Word COM automation (`win32com.client`) with single-session batching, `docx2pdf`, and LibreOffice (`soffice --headless`) with graceful non-fatal fallback.
+   - Preserves apartment threading integrity via `pythoncom.CoInitialize()` and `pythoncom.CoUninitialize()` and automatically maps converted PDFs into the UI artifact tree per class section.
 
 
 
