@@ -5,14 +5,20 @@ tags:
   - architecture
   - pywebview
 status: active
-last_modified: 2026-10-15
+last_modified: 2026-11-05
 source_of_truth:
   - executable_test/main.py
   - executable_test/api/
   - executable_test/ui.html
+  - executable_test/css/tokens.css
   - executable_test/css/base.css
+  - executable_test/css/layout.css
   - executable_test/css/components.css
+  - executable_test/css/tables.css
+  - executable_test/css/drawers.css
+  - executable_test/css/modals.css
   - executable_test/js/app.js
+  - executable_test/js/bridge.js
   - modules/services/orchestrator.py
   - modules/parsers/docx_grid_table.py
   - modules/parsers/template_analyzer.py
@@ -31,6 +37,8 @@ Related notes:
 - [[UI Architecture]]
 - [[Generators Overview]]
 - [[Testing Strategy]]
+- [[HIG & UX Audit]]
+- [[Documentation & Skills Audit]]
 
 ---
 
@@ -39,14 +47,15 @@ Related notes:
 ```mermaid
 graph LR
     subgraph Frontend ["Frontend (HTML / CSS / JS)"]
-        UI["ui.html (Glassmorphism / HIG)"]
+        UI["ui.html (Batch Workbench / Apple HIG)"]
         State["js/state.js"]
-        StepUI["js/step1.js ... step6.js"]
-        BridgeJS["js/api_bridge.js"]
+        StepperUI["js/stepper.js (6 Contextual Stages)"]
+        StepHandlers["js/step1.js, step2.js, step3.js"]
+        BridgeJS["js/bridge.js"]
     end
 
     subgraph IPC ["PyWebView IPC Bridge"]
-        API["executable_test/api/ (ScriptAPI)"]
+        API["executable_test/api/ (ScriptAPI Mixins)"]
     end
 
     subgraph Backend ["Python Core Services"]
@@ -71,16 +80,17 @@ graph LR
     end
 
     UI --> State
-    State --> StepUI
-    StepUI --> BridgeJS
+    State --> StepperUI
+    StepperUI --> StepHandlers
+    StepHandlers --> BridgeJS
     BridgeJS <==>|"window.pywebview.api"| API
-    
+
     API --> Config
     API --> Parser
     API --> Roster
     API --> Validator
     API --> Orchestrator
-    
+
     Orchestrator --> DynamicEngine
     DynamicEngine --> Engines
     Orchestrator --> CEIT
@@ -94,41 +104,38 @@ graph LR
 ## 🧩 Architectural Subsystems
 
 ### 1. Presentation & Transport Layer (`executable_test/`)
-- **Transport Scheme (`file:///`)**: In Commit `138`, application transport was migrated from an internal localhost HTTP server to an explicit resolved file URI (`document_url = Path(html_template).resolve().as_uri()`), eliminating loopback port contention, WSGI queueing, and startup socket starvation.
+- **Transport Scheme (`file:///`)**: Application transport uses an explicit resolved file URI (`document_url = Path(html_template).resolve().as_uri()`), eliminating loopback port contention, WSGI queueing, and startup socket starvation.
 - **Single-Page Application**: Hosted in `executable_test/ui.html` with an inline `<style>.d-none { display: none !important; }</style>` failsafe in `<head>` to enforce visibility state prior to external asset loading.
-- **Decoupled CSS Architecture**: Separated into `css/base.css` (design tokens, reset, `.d-none`), `css/components.css` (stepper, dock, toasts, cards), `css/drawers.css`, and `css/modals.css`.
-- **Modular Vanilla JavaScript**: Loaded in strict dependency order and coordinated by `bootstrapApp()` in `js/app.js`, which checks `document.readyState` and manages `window.__app_initialized__` and `window.__app_bootstrap_runs` sentinels:
+- **Decoupled CSS Architecture**: Separated into 7 modular stylesheets:
+  - `css/tokens.css` (Apple HIG semantic color palettes, 4px base spacing scale, Segoe UI Variable typography tokens)
+  - `css/base.css` (global resets, visible focus rings, WCAG scroll padding)
+  - `css/layout.css` (fluid 2160px shell workspace, centered workflow ribbon)
+  - `css/components.css` (stepper chips, buttons, breadcrumbs, status-only dock, toasts)
+  - `css/tables.css` (8-column Packages class matrix, roster grids, cell truncation)
+  - `css/drawers.css` (slide-out section Inspector and Help drawers)
+  - `css/modals.css` (dialog overlays, focus traps, elevation tokens)
+- **Modular Vanilla JavaScript**: Loaded in strict dependency order and coordinated by `bootstrapApp()` in `js/app.js`:
   - `state.js`: Central reactive state store (`AppState`).
-  - `theme.js`: Dark / Light theme transition manager.
-  - `stepper.js`: Workflow navigation and step progression.
+  - `theme.js`: Dark / Light theme transition manager (WAAPI circular reveal with reduced motion respect).
+  - `stepper.js`: Six-stage workflow navigation engine, status-only dock updater, and stage transitions.
+  - `step1.js`, `step2.js`, `step3.js`: Stage handlers for Schedule, Rosters, and Packages batch matrix.
   - `toast.js`: Non-blocking, accessible alert engine.
-  - `step1.js` &ndash; `step6.js`: Individual workflow step controllers.
-  - `api_bridge.js`: Wrapper providing fallback mock support for browser testing alongside real `pywebview` IPC.
+  - `bridge.js`: Core IPC bridge wrapper connecting UI events to `window.pywebview.api`.
 
 ### 2. IPC Layer ([[PyWebView Bridge]])
 - Located in `executable_test/api/`.
-- Implements a composite `ScriptAPI` using modular Python mixins introduced to enforce a strict modular architecture (Commit `88`):
-  - `ScheduleRosterMixin`: File dialogs, drop payloads, and parsing triggers.
-  - `ConfigMixin`: Parser configurations, keywords, and semester boundaries.
-  - `TemplateMixin`: Custom template `.docx` recipes and inspection.
-  - `SystemMixin`: Native OS directory exploration and shell launching.
-  - `GenerationMixin`: Worker thread instantiation, telemetry hook, and cancellation.
+- Implements a composite `ScriptAPI` using 9 modular Python mixins:
+  - `ScheduleAPI`: Schedule spreadsheet file picking, drop ingestion, and table extraction.
+  - `RosterAPI`: Multi-roster folder scanning, matching, column mapping, and diffing.
+  - `ClassesAPI`: Section selection state, lecture/lab classification toggles, and section inspection.
+  - `DatesAPI`: Semester date boundary presets, exceptions, and validation.
+  - `OutputAPI`: Destination directory selection and native explorer launching.
+  - `GenerationAPI`: Worker thread execution, progress telemetry hook, and cooperative cancellation.
+  - `PreferencesAPI`: Persistent user preferences (appearance, font scaling, faculty defaults).
+  - `TemplateSetsAPI`: Dynamic template registration, recipe management, and custom slot mapping.
+  - `WorkspacesAPI`: Multi-semester named workspaces and snapshot management.
 
 ### 3. Native Integration (`executable_test/native/dnd.py`)
-- Overrides the default PyWebView window window procedure (WndProc).
+- Overrides the default PyWebView window procedure (WndProc).
 - Implements `IDropTarget` OLE interface to allow native Windows file drag-and-drop directly onto the webview, bypassing Edge Chromium's restricted file-drop behaviors.
-- Routes payloads back to `api_bridge.js` which then calls the IPC layer.
-
-### 4. Processing & Extraction ([[Generator Pipeline]])
-- Parses schedule spreadsheets (`modules/parsers/schedule_parser.py`) and maps class sections against student rosters (`modules/parsers/roster_parser.py`).
-- Employs a validator (`modules/services/validator.py`) to match schedules to rosters and enforce data requirements.
-
-### 5. Generation Core ([[Orchestrator Lifecycle]])
-- Threaded execution in `modules/services/orchestrator.py:process_all`.
-- Pushes live step progress and status messages back to the UI via `window.onGenerationProgress` callbacks.
-- Supports instant, clean cancellation via thread-safe `threading.Event`.
-
-### 6. Dynamic Analysis & Rendering Engine ([[Template Discovery Pipeline]])
-- **Deterministic Template Introspection**: `DeterministicTemplateAnalyzer` (`modules/parsers/template_analyzer.py`) scans `.docx` and `.xlsx` templates in under 20ms using pure Python algorithms, discovering semantic slots and repeating table topologies without calling external AI services.
-- **2D Grid-Topology Normalization**: `DocxGridTable` (`modules/parsers/docx_grid_table.py`) constructs a 2D rectangular visual coordinate matrix resolving horizontal spans (`w:gridSpan`) and vertical continuations (`w:vMerge`) to their canonical origin cells, eliminating merged-cell coordinate traps.
-- **Unified Dynamic Rendering Engine**: `DynamicDocumentRenderer` (`modules/generators/dynamic_renderer.py`) populates Word templates with run-level style preservation, dynamic name font auto-scaling, native list auto-numbering preservation, and perturbation resilience verified by `tests/test_dynamic_renderer_resilience.py`.
+- Routes payloads back to `bridge.js` which then calls the IPC layer.

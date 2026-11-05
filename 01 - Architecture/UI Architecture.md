@@ -6,20 +6,25 @@ tags:
   - ui
   - accessibility
 status: active
-last_modified: 2026-10-16
+last_modified: 2026-11-05
 source_of_truth:
   - executable_test/ui.html
+  - executable_test/css/tokens.css
   - executable_test/css/base.css
+  - executable_test/css/layout.css
   - executable_test/css/components.css
+  - executable_test/css/tables.css
   - executable_test/css/drawers.css
   - executable_test/css/modals.css
   - executable_test/js/app.js
   - executable_test/js/state.js
   - executable_test/js/theme.js
   - executable_test/js/stepper.js
+  - executable_test/js/step1.js
+  - executable_test/js/step2.js
+  - executable_test/js/step3.js
   - executable_test/js/toast.js
   - executable_test/js/templates.js
-  - executable_test/js/bridge.js
   - executable_test/js/bridge.js
   - executable_test/js/drawers.js
   - executable_test/js/modal.js
@@ -30,21 +35,23 @@ source_of_truth:
 
 # UI Architecture
 
-The frontend architecture of the **CvSU Document Generator** is built with modern vanilla web standards (HTML5, Vanilla CSS, Vanilla JavaScript ES6+) optimized for high performance, smooth micro-animations, resilient asset loading, and full accessibility compliance (WCAG 2.1 AA).
+The frontend architecture of the **CvSU Document Generator** is built as a **Hybrid Guided Batch Workbench** utilizing vanilla web standards (HTML5, Vanilla CSS, Vanilla JavaScript ES6+) running inside Microsoft Edge WebView2. It combines Apple Human Interface Guidelines interaction ergonomics with native Windows desktop conventions, Segoe UI Variable typography, an offline 4px base spacing scale, and bounded WCAG 2.2 AA accessibility compliance.
 
 Related notes:
 - [[CvSU Document Generator MOC]]
 - [[System Architecture]]
 - [[PyWebView Bridge]]
 - [[Testing Strategy]]
+- [[HIG & UX Audit]]
+- [[Documentation & Skills Audit]]
 - [[User Manual]]
-- [[v1.0.1]]
+- [[v1.1.0]]
 
 ---
 
 ## 🚀 Document Transport Architecture (`file:///`)
 
-In Commit `138`, the desktop runtime transport was migrated from an implicit localhost HTTP server to an explicit resolved file URI scheme:
+The desktop runtime transport uses an explicit resolved file URI scheme:
 
 ```python
 # executable_test/main.py
@@ -53,35 +60,41 @@ window = webview.create_window(..., url=document_url)
 ```
 
 ### Forensic Root Cause & Motivation
-Under the legacy localhost HTTP transport, PyWebView spun up an internal WSGI/Bottle server (`http://localhost:<random_port>/`). Forensic benchmarking revealed:
-1. **Concurrency Pressure**: During cold desktop boot, WebView2 initiated concurrent GET requests for 20 CSS/JS assets plus `ui.html`. The internal WSGI server (`request_queue_size = 5`) suffered connection queueing and latency spikes.
-2. **Asset Starvation**: In failing launches, asset requests (specifically `drawers.css` and `modals.css`) were stalled or dropped prior to HTTP response generation. Because `.d-none` was originally bundled inside `drawers.css`, the missing stylesheet caused off-canvas side drawers and modals to render exposed across the screen before CSS evaluation completed.
+Under earlier localhost HTTP implementations, PyWebView spun up an internal WSGI/Bottle server (`http://localhost:<random_port>/`). Forensic benchmarking revealed:
+1. **Concurrency Pressure**: During cold desktop boot, WebView2 initiated concurrent GET requests for 20+ CSS/JS assets plus `ui.html`. The internal WSGI server (`request_queue_size = 5`) suffered connection queueing and latency spikes.
+2. **Asset Starvation**: In failing launches, asset requests were stalled or dropped prior to HTTP response generation. When stylesheets were delayed, off-canvas side drawers and modals rendered exposed across the screen before CSS evaluation completed.
 3. **Transport Immunity**: Migrating to `file:///` resolves all assets directly through the local Windows filesystem using the native OS file cache. It eliminates TCP socket binding, loopback port contention, and web server thread saturation. Parity benchmarks established 0/20 failures under `file:///` (versus 14/20 under cold localhost HTTP), with 100% parity across native bridge IPC and OLE Drag-and-Drop functionality.
 
 ---
 
-## 🎨 Design System & CSS Architecture
+## 🎨 Design System & Modular CSS Architecture
 
-The application styling is structured into decoupled, modular CSS layers to prevent single-point cascade failures:
+The application styling is structured into decoupled, modular CSS layers to eliminate specificity wars and prevent cascade failures:
 
 ```mermaid
 graph TD
     HTML["executable_test/ui.html"]
     Inline["Inline &lt;style&gt; Failsafe<br>(.d-none { display: none !important; })"]
-    Base["css/base.css<br>(Tokens, Reset, Typography, .d-none)"]
-    Comp["css/components.css<br>(Stepper, Dock, Toasts, Cards)"]
-    Drawers["css/drawers.css<br>(Side Drawers & Overlays)"]
-    Modals["css/modals.css<br>(Modal Overlays & HIG Dialogs)"]
+    Tokens["css/tokens.css<br>(Apple HIG Colors, 4px Spacing, Type)"]
+    Base["css/base.css<br>(Reset, Typography, Scroll Padding, Focus)"]
+    Layout["css/layout.css<br>(Fluid 2160px Shell, Centered Ribbon, Stages)"]
+    Comp["css/components.css<br>(Chips, Breadcrumbs, Status Dock, Toasts)"]
+    Tables["css/tables.css<br>(Packages 8-Col Matrix, Rosters, Truncation)"]
+    Drawers["css/drawers.css<br>(Inspector Drawer, Slide Panels)"]
+    Modals["css/modals.css<br>(Settings Modal, Column Mapping Dialog)"]
 
     HTML --> Inline
+    HTML --> Tokens
     HTML --> Base
+    HTML --> Layout
     HTML --> Comp
+    HTML --> Tables
     HTML --> Drawers
     HTML --> Modals
 ```
 
 ### 1. Critical Visibility Inline Failsafe
-To guard against any network or filesystem delay, `executable_test/ui.html` embeds a synchronous inline stylesheet in its `<head>` before any external `<link>` tags:
+To guard against any filesystem or engine delay, `executable_test/ui.html` embeds a synchronous inline stylesheet in its `<head>` before any external `<link>` tags:
 ```html
 <style>
     .d-none { display: none !important; }
@@ -89,81 +102,130 @@ To guard against any network or filesystem delay, `executable_test/ui.html` embe
 ```
 This guarantees that the browser engine applies hiding rules during initial layout passes before external stylesheets finish parsing.
 
-### 2. Modular Stylesheets:
-- **`css/base.css`**: Core typography, HSL design tokens, global resets, and authoritative layout utilities (including `.d-none { display: none !important; }`).
-- **`css/components.css`**: Decoupled UI components including the workflow stepper bar, floating action dock, status badges, chips, and toast containers.
-- **`css/drawers.css`**: Dedicated off-canvas side drawer styles (`#helpDrawer`, `#logDrawer`) with localized fallback visibility safeguards.
-- **`css/modals.css`**: Dialog overlays and modal windows for settings and column mapping.
-- **Dynamic Theming (`js/theme.js`)**: Smooth CSS variable transitions between Dark and Light modes with View Transition circular reveals, querying `prefers-color-scheme` and storing preferences in `localStorage`.
+### 2. Modular Stylesheet Inventory:
+- **`css/tokens.css`**: Authoritative design tokens. Defines Apple HIG-derived semantic color palettes for Light and Dark themes, the **4px Base Spacing Scale** (`--space-1: 4px` through `--space-8: 32px`), Windows `Segoe UI Variable` system typography tokens, elevation box shadows, and transition curves.
+- **`css/base.css`**: Base typography reset, fluid workspace bounds, global focus visible indicators (`:focus-visible` with 2px solid rings and 2px offset), and WCAG scroll clearance padding (`scroll-padding-top` and `scroll-padding-bottom: calc(var(--dock-height) + 16px)`).
+- **`css/layout.css`**: Application workspace shell. Implements fluid desktop constraints (`width: min(96%, 2160px)`), centers the six-stage workflow navigation ribbon, and defines stage containers (`.workflow-stage`).
+- **`css/components.css`**: Interactive components including stepper navigation chips, action buttons, section filter pills, breadcrumb trails, toast notification containers, and the compact status-only dock.
+- **`css/tables.css`**: Data grid styling for the 8-column Packages class matrix, Schedule preview tables, and Roster tables. Handles column widths, cell padding based on the 4px scale, text truncation (`text-overflow: ellipsis`), and scroll boundaries.
+- **`css/drawers.css`**: Dedicated slide-out drawer styles for the on-demand section Inspector (`#classInspectorDrawer`), Help drawer, and diagnostic Logs.
+- **`css/modals.css`**: Modal dialog overlays for Settings, Roster Column Mapping, and workspace confirmation prompts.
 
 ---
 
-## 🌓 View Transition Theming & Packaged Runtime Architecture
+## 🧭 Six-Stage Single-Active-Stage Navigation
 
-The theme management subsystem (`executable_test/js/theme.js`) provides dynamic switching between Dark Mode and Light Mode with a circular View Transition reveal and native accessibility awareness:
-
-```text
-document.startViewTransition()
-        ↓
-await transition.ready
-        ↓
-document.documentElement.animate(...) [WAAPI]
-        ↓
-target: ::view-transition-new(root)
-clipPath: circle(0px at x y) → circle(endRadius at x y)
-```
-
-### 1. View Transition Engine Architecture
-- **WAAPI Iris Ownership**: The Web Animations API (WAAPI) is the sole owner of the circular iris reveal geometry (`THEME_TRANSITION_DURATION_MS = 450ms`, `cubic-bezier(0.2, 0, 0, 1)`).
-- **CSS Specular Styling**: `executable_test/css/modals.css` applies a restrained specular edge filter to `::view-transition-new(root)` without competing keyframe animations.
-- **Timing Synchronization**: WAAPI execution strictly awaits `transition.ready` before invoking `.animate()`. Animating before `.ready` would target an unmounted pseudo-element.
-
-### 2. Packaged Desktop Runtime Environment (`CvSU Gen.exe`)
-In the packaged Windows desktop binary:
-- **Container**: PyWebView `6.2.1` using WinForms + Microsoft Edge WebView2 Evergreen Runtime.
-- **Active Engine**: Evergreen WebView2 Runtime (`154.0.4258.37`) running in EdgeChromium mode.
-- **API Capabilities**: Natively supports `document.startViewTransition`, `Element.prototype.animate`, and `::view-transition-new(root)` pseudo-element WAAPI animations. All promises (`updateCallbackDone`, `ready`, `finished`) resolve with 0 errors.
-
-### 3. Forensic Runtime Diagnosis & Accessibility Interaction (Commit 200)
-When running the compiled `CvSU Gen.exe`, the application toggles theme successfully but may display no iris animation on certain host machines:
-- **Root Cause**: `theme.js` queries `window.matchMedia("(prefers-reduced-motion: reduce)").matches` to honor user accessibility preferences.
-- **OS Synchronization**: Edge WebView2 synchronizes `prefers-reduced-motion` with the Windows host setting `SPI_GETCLIENTAREAANIMATION` (Windows Settings > Accessibility > Visual Effects > **Animation effects**).
-- **Behavior Parity**:
-  - When Windows **Animation effects** is **Off**, `prefers-reduced-motion: reduce` evaluates to `true`. Per accessibility design (Apple HIG & WCAG), `theme.js` immediately applies the theme without large-scale spatial motion.
-  - In Playwright browser tests, the browser context defaults to `no-preference` (`false`), allowing the 450ms iris to animate.
-  - When reduced motion is bypassed or Windows Animation effects is enabled, `CvSU Gen.exe` plays the full circular iris animation with zero exceptions.
-
----
-
-## 🧭 Workflow Stepper Bar
-
-The navigation flow is structured as a linear 6-step progression:
+The navigation flow is structured as a **six-stage contextual progression** governed by `executable_test/js/stepper.js`:
 
 ```mermaid
 graph LR
-    S1["Step 1: Schedule"] --> C1["Connector"]
-    C1 --> S2["Step 2: Rosters"]
-    S2 --> C2["Connector"]
-    C2 --> S3["Step 3: Confirm Classes"]
-    S3 --> C3["Connector"]
-    C3 --> S4["Step 4: Boundaries"]
-    S4 --> C4["Connector"]
-    C4 --> S5["Step 5: Output Folder"]
-    S5 --> C5["Connector"]
-    S5 --> C6["Connector"]
-    C6 --> S6["Step 6: Initialize"]
+    S1["Stage 1: Schedule"] --> S2["Stage 2: Rosters"]
+    S2 --> S3["Stage 3: Packages"]
+    S3 --> S4["Stage 4: Dates"]
+    S4 --> S5["Stage 5: Output"]
+    S5 --> S6["Stage 6: Generate"]
 ```
 
-### Component Breakdown:
-- `#workflowStepper`: Sticky progress bar displaying 6 interactive step chips (`#chipStep1` to `#chipStep6`).
-- Step Chips: Display step number, icon, and dynamic completion badges (`statusStep1` &ndash; `statusStep6`).
-- Connectors: Animated status connectors (`#connector1to2`, etc.) highlighting completed progression tracks.
+### Navigation Architecture & Stage Panel Identifiers:
+- **Centered Workflow Ribbon (`#workflowRibbon`)**: Sticky horizontal navigation header centered within the main workspace. Displays six interactive stage chips (`#chipStep1` to `#chipStep6`).
+- **Single-Active-Stage Model**: Exactly one workflow stage panel is rendered active (`.active-stage`) at any given moment. Inactive stage panels are hidden via `.d-none`, preventing vertical stacking and scroll exhaustion while keeping application state fully preserved in memory.
+- **Stage Panels & Heading Hierarchy**:
+
+| Stage Navigation | Actual Panel Heading | Panel Element ID | Heading Element ID | Navigation Chip ID |
+| :--- | :--- | :--- | :--- | :--- |
+| **Schedule** | Select Instructor Schedule (.xls or .xlsx) | `#cardStep1` | `#stageHeading1` | `#chipStep1` |
+| **Rosters** | Select Student Rosters (.xlsx, .xls, or .csv) | `#cardStep2` | `#stageHeading2` | `#chipStep2` |
+| **Packages** | Confirm Detected Classes & Subject Types | `#cardStep3` | `#stageHeading3` | `#chipStep3` |
+| **Dates** | (Optional) Set Semester Date Boundaries | `#cardStep4` | `#stageHeading4` | `#chipStep4` |
+| **Output** | Choose Target Output Folder | `#cardStep5` | `#stageHeading5` | `#chipStep5` |
+| **Generate** | Initialize Workflow | `#cardStep6` | `#stageHeading6` | `#chipStep6` |
+
+- **Bidirectional Non-Destructive Progression**: Users can revisit earlier stages (e.g. returning to Rosters to review a file or to Schedule to reload) without losing class selection, dates, or output directory settings.
+- **Stage Completion Telemetry**: Each chip dynamically reflects completion status (`statusStep1` – `statusStep6`) using neutral ready dots, checkmarks, or amber warning indicators.
+
+---
+
+## 📦 Packages Stage: Batch Workbench & Global Selection Contract
+
+Stage 3 (**Packages**) is the central batch workbench of the application (`#cardStep3`, headed by `#stageHeading3`):
+
+### 1. The Eight-Column Class Matrix
+The class table (`#packagesTable`) normalizes parsed faculty schedule entries into an 8-column responsive grid adhering strictly to the classes defined in `step2.js` and `ui.html`:
+1. **Selection Checkbox (`col-select`)**: Master and per-row checkbox determining which classes are included in the generation batch.
+2. **Section (`col-section`)**: Course and section identifier (e.g. `BSCS 3-1`).
+3. **Subject Title (`col-subject`)**: Descriptive course name with graceful ellipsis.
+4. **Schedule & Room (`col-schedule`)**: Meeting times, days, and assigned classroom.
+5. **Classification (`col-classification`)**: Editable classification dropdown control (`<select class="type-dropdown class-type-select">`) supporting per-section configuration between "Lecture and Lab" (`lecture_lab`) and "Lecture only" (`lecture_only`). Not an informational badge.
+6. **Enrolled (`col-students`)**: Matched student count derived from linked rosters.
+7. **Status (`col-status`)**: Roster pairing readiness (`Roster Linked`, `Mismatch`, or `Unmatched`).
+8. **Actions (`col-actions`)**: Opens the contextual slide-out Inspector for that specific class.
+
+### 2. Global Batch-Level Document Package Selection
+Document generation packages are configured globally at the top of the Packages workbench via batch checkboxes:
+- **Attendance Sheets** (`#checkAttendance`)
+- **CEIT Dept Forms** (`#checkCeit`)
+- **Official Grade Sheets** (`#checkGrades`)
+
+> [!IMPORTANT]
+> **Architectural Invariant — Global Package Scope**:
+> Package selection is strictly **global at the batch level**. Selected packages apply uniformly to all checked classes in the generation run. The backend PyWebView bridge contract (`engine_filter`) operates across the batch. The interface deliberately **does NOT provide per-section package overrides**.
+
+### 3. Classification, Package Selection & Section Selection Semantics
+
+The architecture clearly separates three distinct configuration layers:
+
+1. **Global Document Package Selection**:
+   - Packages: **Attendance Sheets** (`#checkAttendance`), **CEIT Dept Forms** (`#checkCeit`), **Official Grade Sheets** (`#checkGrades`).
+   - Applied uniformly to all selected sections for the generation run.
+   - **No per-section package override is supported**.
+
+2. **Per-Section Classification**:
+   - Values: **"Lecture and Lab"** (`lecture_lab`) and **"Lecture only"** (`lecture_only`).
+   - Configured individually per section using the row dropdown control (`.class-type-select`).
+   - Supports bulk updates via `applyBulkClassType()`, modifying all checked sections simultaneously.
+   - Manual overrides are persisted in the frontend state mechanism using `localStorage` key `classTypeOverrides` via `saveClassTypeOverrides()` and restored on startup via `applyClassTypeOverrides()`.
+   - **Generation Data Flow**:
+     - *Normal generation path*: In `step3.js`, selected dropdown values are collected into the `typeOverrides` dictionary and passed as an argument to `window.pywebview.api.run_generation(typeOverrides, dateOverrides, selectedClasses, enabledEngines, state.rosterConfigs, exportPdf)`. The Python `GenerationAPI` receives this argument as `type_overrides` and forwards it to `process_all(...)`.
+     - *Sample-preview path*: The document preview call passes an object payload to `window.pywebview.api.preview_sample_document(payload)` where the property is explicitly named `class_type_overrides`.
+     - *Downstream orchestration effect*: The orchestrator utilizes the classification override to select the appropriate template roles:
+       - **Lecture and Lab**: Selects `GRADING_LECTURE_LAB_TEMPLATE.xlsx` (containing Lecture, Laboratory, Consolidated, and Grading Sheet tabs) and integrated multi-session attendance templates.
+       - **Lecture only**: Selects `GRADING_LECTURE_TEMPLATE.xlsx` (containing Lecture and Grading Sheet tabs) and standard lecture attendance templates.
+
+3. **Section Selection**:
+   - Checkboxes in matrix column `col-select` (using row selector `.item-class-check`) determine which detected sections are included in the generation run.
+   - **Stage Navigation vs. Generation Preflight**: In Stage 3, clicking "Continue to Dates" invokes `activateStage(4)` and is not blocked by an empty selection, allowing free navigation across workflow stages.
+   - **Generation Preflight Guard**: In Stage 6, **generation preflight requires at least one selected section**. If no sections are selected when `startGeneration()` executes (`selectedClasses.length === 0`), initializing the workflow is blocked with a "No Classes Selected" warning toast, and the user is returned to the Packages stage (`scrollToStep("cardStep3")`).
+
+> [!CAUTION]
+> **Do Not Conflate Classification with Package Selection**:
+> Classification determines subject instruction type (Lecture and Lab vs. Lecture only) and is fully customizable per section with persistent overrides. In contrast, package selection determines which document types are built (Attendance Sheets, CEIT Dept Forms, Official Grade Sheets) and is strictly batch-global.
+
+### 4. Contextual Section Inspector Drawer (`#classInspectorDrawer`)
+Clicking "Inspect" on any class matrix row slides open the Inspector drawer from the right edge:
+- Displays detailed section metadata, schedule hours, and room assignment.
+- Visualizes linked roster status and enrolled student counts.
+- Provides immediate access to verify or remap roster columns.
+- Preserves user focus without leaving the Packages stage and without altering global package selections.
+
+---
+
+## ⚓ Status-Only Persistent Dock (`#bottomActionBar`)
+
+In Phase 6.1 and Phase 7, the floating bottom action bar was refactored into a **compact, scroll-aware status-only dock**:
+- **Removal of Competing Primary Actions**: The persistent dock does **NOT** house a primary "Initialize Workflow" or "Generate" button. Competing primary buttons have been eliminated.
+- **Active Workspace Primary Action**: The primary action button for each stage resides directly inside that stage's workspace (e.g. "Continue to Rosters" in Stage 1, "Continue to Packages" in Stage 2, "Initialize Workflow" in Stage 6).
+- **Readiness Telemetry Chips**: The dock displays real-time readiness indicators:
+  - Schedule loaded status
+  - Rosters matched status
+  - Selected packages count
+  - Output folder configured status
+- **Scroll Clearance**: `base.css` defines `scroll-padding-bottom: calc(var(--dock-height) + 16px)` on scrollable containers, ensuring that bottom-row table content and buttons are never occluded by the dock.
 
 ---
 
 ## ⚡ JavaScript Initialization Lifecycle (`js/app.js`)
 
-To ensure deterministic initialization across varied WebView2 engine versions and desktop environments, application bootstrapping is managed by `bootstrapApp()`:
+To ensure deterministic initialization across WebView2 engine versions and desktop environments, application bootstrapping is managed by `bootstrapApp()`:
 
 ```javascript
 function bootstrapApp() {
@@ -197,24 +259,17 @@ if (document.readyState === 'loading') {
 
 To provide a seamless desktop experience, the UI relies on a hybrid drag-and-drop system:
 - **Frontend Dropzones**: Defined in HTML with `js/bridge.js` intercepting standard DOM `dragenter`/`dragleave`/`drop` events.
-- **Native OLE Intercept (`executable_test/native/dnd.py`)**: Windows Edge WebView2 often blocks or sandboxes direct file drops. The Python backend overrides the Windows window procedure to act as a native OLE `IDropTarget`. 
-- **Payload Routing**: When files are dropped, the native layer routes them through `api_bridge.js` directly to the `ScheduleRosterMixin` or `TemplateMixin` to be ingested exactly as if picked via a standard file dialog.
+- **Native OLE Intercept (`executable_test/native/dnd.py`)**: Windows Edge WebView2 sandboxes direct file drops. The Python backend overrides the Windows window procedure to act as a native OLE `IDropTarget`.
+- **Payload Routing**: When files are dropped, the native layer routes them through `bridge.js` directly to the `ScheduleAPI` or `RosterAPI` mixins to be ingested identically to native file-dialog selections.
 
 ---
 
-## 🗔 Dialogs, Modals & Drawers
+## 🗔 Dialogs, Modals & Settings Architecture
 
-Configuration and auxiliary user flows are handled out-of-band to prevent interrupting the main workflow stepper:
-- **Drawers**: Off-canvas side panels used for Help/Documentation (`js/drawers.js`) and execution Diagnostics (Logs).
-- **Modals**: Centered overlays for settings configuration (`js/settings.js`), manual column mapping, and critical HIG-style confirmations.
-- **Settings Modal Uniformity & Responsiveness**:
-  - **Uniform Geometry**: `#modalParserSettingsBackdrop .modal-dialog-custom` (`modal-dialog-settings`) maintains a fixed uniform desktop bounding box (`width: min(920px, calc(100vw - 32px)); height: min(680px, 88vh); min-height: 520px;`) across all 6 configuration sections (Subject Prefixes, Lab Courses, Degree Aliases, Roster Keywords, Faculty Defaults, Custom Forms). Tab navigation operates entirely within a flexbox body (`min-height: 0; overflow-y: auto;`) with zero jumping or vertical jitter.
-  - **Apple HIG Preferences Architecture**: Faculty Defaults adheres to Apple Human Interface Guidelines for System Settings via an Inset Grouped List (`.apple-hig-group`) featuring themed squircle icon tiles (👤 Instructor, 🏛️ College, 🗓️ Term), semibold titles with caption subtitles, right-aligned controls with smooth focus rings, and a macOS Quick Look-style **Document Header Live Preview** card that syncs typography and layout in real-time as defaults are edited.
-  - **Inner Component Elasticity**: Data table wrappers (`#cfgPanePrefixes`, `#cfgPaneDegrees`) and keyword clouds (`#cfgPaneKeywords`) utilize `flex: 1; min-height: 180px; max-height: none;` without inline height clamping, filling the uniform dialog space down to the action footer.
-  - **Dynamic Stepper Readiness**: The workflow stepper dynamically binds Step 4 (Dates) readiness to the presence of `startDate` and `endDate` boundaries, displaying a neutral `•` indicator until dates are configured or semester presets applied.
-  - **Tablet Adaptation (`<= 820px`)**: Segmented navigation tabs seamlessly transform into a 3x2 responsive grid, preventing horizontal tab clipping and maintaining accessible touch targets.
-  - **Mobile Adaptation (`<= 480px`)**: Tabs transition to a 2x3 grid, internal multi-column forms collapse to single-column card flows, and the modal footer stacks utility actions above primary dialog buttons with zero horizontal scroll.
-  - **Short Viewport Resilience (`<= 640px height`)**: The modal dialog automatically caps at `94vh` with reduced backdrop padding (`8px`) ensuring all scrollable controls and dialog buttons remain accessible.
+Configuration and auxiliary user flows are handled out-of-band to prevent interrupting the main workflow:
+- **Settings Modal (`js/settings.js`)**: Uniform desktop dialog box (`width: min(920px, calc(100vw - 32px))`) adhering to Apple HIG Inset Grouped List patterns with themed squircle icon tiles and real-time Document Header Live Preview.
+- **Roster Column Mapping Modal (`#modalColumnMappingBackdrop`)**: Interactive dialog allowing users to map arbitrary or malformed spreadsheet headers to canonical roster fields (`student_number`, `student_name`, `gender`).
+- **Focus Management**: Modals implement active focus trapping (`Tab`/`Shift+Tab` cycling) and `Escape` key listeners, returning focus to the trigger button upon dismissal.
 
 ---
 
@@ -227,40 +282,14 @@ Non-modal notification system replacing blocking dialog alerts:
 
 ---
 
-## ♿ Accessibility Compliance (WCAG 2.1 AA)
+## 🌓 View Transition Theming Architecture (`js/theme.js`)
 
-- **Skip Navigation**: Direct skip-to-content anchor (`<a href="#mainContent" class="skip-link">Skip to main content</a>`).
-- **Full Keyboard Navigation**: All buttons, inputs, dropzones, and drawer toggles have clear visible focus rings (`:focus-visible`).
-- **Semantic Landmark Regions**: Header (`<header>`), navigation (`<nav>`), main (`<main id="mainContent">`), drawers (`<aside>`), and footer dock (`<footer>`).
-- **Live Telemetry Regions**: Progress bar and generation status text are wired with `aria-live="polite"` to announce real-time background status to screen readers.
+The dark/light theme toggle uses the **CSS View Transitions API** (Chromium) to produce a circular iris reveal originating from the toggle button coordinates:
 
----
-
-## 🌗 Theme Transition Subsystem (`js/theme.js` + `css/modals.css`)
-
-The dark/light theme toggle uses the **CSS View Transitions API** (Chrome/Chromium) to produce a circular iris reveal originating from the click coordinates. The architecture enforces strict separation of responsibilities.
-
-### Architecture (commit 197)
-
-| Responsibility | Owner |
-|---|---|
-| Click-origin geometry (`x`, `y`, `endRadius`) | `theme.js` |
-| CSS custom properties (`--vt-x`, `--vt-y`, `--vt-radius`, `--vt-duration`) | `theme.js` injects onto `:root` |
-| Iris `clip-path` circular reveal animation | **`theme.js` via WAAPI** — sole owner |
-| Iris timing duration (`THEME_TRANSITION_DURATION_MS = 450`) | `theme.js` — governs WAAPI iris only |
-| Icon animation (`spin-morph-kf`) | `modals.css` — independent 280ms `@keyframes` (Option A) |
-| Glass edge specular glow (`--vt-edge-specular`) | `modals.css` — static VT-native `filter` on `::view-transition-new(root)` |
-| `prefers-reduced-motion` detection | `theme.js` — checked in JS *before* View Transition starts |
-| `prefers-reduced-motion` fallback | `modals.css` + `theme.js` — JS skips WAAPI iris and icon animation; CSS provides crossfade |
-| `prefers-reduced-transparency` opaque fallback | `modals.css` media query |
-| `prefers-contrast: more` edge treatment | `modals.css` media query |
-
-### WAAPI Iris Flow (commit 197)
-
-```
+```text
 document.startViewTransition(() => { applyTheme(); })
         ↓
-transition.ready  ← CRITICAL: pseudo-elements do not exist until after this resolves
+transition.ready  ← Pseudo-elements exist only after this resolves
         ↓
 document.documentElement.animate(
     { clipPath: [ "circle(0px at x y)", "circle(endRadius at x y)" ] },
@@ -269,282 +298,39 @@ document.documentElement.animate(
 )
         ↓
 await transition.finished
-        ↓
-cleanup (theme-transitioning removed in double requestAnimationFrame)
 ```
 
-### Why WAAPI and not CSS `animation`
-
-Commit 193 established CSS-only iris ownership (`appleThemeIrisReveal @keyframes`). Commit 195 continued with CSS animation. In the actual CvSU Gen runtime environment, the CSS-only approach did not produce a visible iris reveal. Commit 196 restored WAAPI-driven `clip-path` animation on the pseudo-element, which is the more explicit and widely-documented pattern and which has been runtime-verified to produce the expected growing circle.
-
-Dual ownership (CSS animation + WAAPI simultaneously on the same property) causes competing animations and was the root cause of the earlier choppiness in commit 192. The solution is strict single ownership: WAAPI owns the geometry, CSS owns the static styling.
-
-### View Transition Rendering Model & Visual Reality
-
-The CSS View Transitions API defines a **dedicated VT layer** painted by the browser **after** the normal document is fully composited. No DOM element — regardless of z-index value — can be placed into or alongside this layer. Normal DOM z-index has no defined relationship to the VT rendering layer.
-
-```
-::view-transition           (browser VT layer — separate post-compositing pass)
-  └─ ::view-transition-image-pair(root)
-       ├─ ::view-transition-old(root)   z-index: 1  (old page snapshot, static)
-       └─ ::view-transition-new(root)   z-index: 2  (new page, WAAPI clip-path grows)
-            filter: var(--vt-edge-specular)          ← CSS-owned static glass edge treatment
-```
-
-**Specular Filter Reality (Verified via Headed Inspection):**
-- In Chromium's compositing model, `filter: drop-shadow(...)` on `::view-transition-new(root)` is clipped by the circular `clip-path: circle(...)`.
-- `filter` does not project an exterior halo beyond the aperture contour because `clip-path` discards all content outside the circular radius.
-- Headed browser visual tests across multiple viewports (880×640, 1120×780, 1440×900) confirm the transition presents as a **crisp, razor-sharp circular geometric reveal (Apple-style clean iris wipe)** rather than a blurred halo, neon ring, or full-screen bloom.
-- Normal application glassmorphism (`backdrop-filter: blur(...)`) remains active on UI cards, navigation headers, and floating docks, but operates independently of the View Transition snapshot pipeline.
-
-### View Transition Pseudo-Tree Experimental Findings (commit 198)
-
-An empirical investigation was conducted in Chromium 151+ to explore whether `backdrop-filter` or masking on VT pseudo-elements could produce a live frosted-glass annulus:
-
-1. **`backdrop-filter` on `::view-transition-new(root)` (Exp A)**:
-   - Evaluated `backdrop-filter: blur(16px) saturate(180%)`.
-   - Result: **Zero visible change**. Because `::view-transition-new(root)` contains an opaque raster snapshot of the destination document, its opaque pixels cover whatever backdrop-filter renders underneath inside the circular clip. Outside the circle, `clip-path` discards the entire pseudo-element (content and filter alike).
-2. **`backdrop-filter` on `::view-transition-image-pair(root)` (Exp B) & `::view-transition-group(root)` (Exp C)**:
-   - Result: **Completely occluded**. Outside the circle, `old(root)` is 100% opaque. Inside the circle, `new(root)` is 100% opaque. Because `old` and `new` meet seamlessly with no gap, the container's backdrop is fully occluded everywhere across the viewport.
-3. **Annulus / Ring Masking (Exp D)**:
-   - Masking `new(root)` with a radial gradient punches out the center of the new theme, revealing the old theme in the interior. A single pseudo-element cannot simultaneously display an opaque interior disk AND a blurred translucent border without a second layer.
-4. **Pseudo-Element Nesting (Exp E)**:
-   - Attempting `::view-transition-new(root)::before` or `::view-transition-image-pair(root)::after` produces a CSS parse error. Pseudo-elements cannot be nested inside View Transition pseudo-elements.
-5. **Conclusion**:
-   - The current CSS View Transitions Level 1/2 specifications and browser implementations do not provide an independent layer for a secondary glass wavefront without introducing DOM overlays (which fail due to snapshot freezing and layer isolation).
-   - The production architecture intentionally keeps the clean, compositor-friendly WAAPI circular reveal and monochrome specular filter without overengineering or faking glassmorphism.
-
-### Captured Frosted-Glass Material Prototype Findings (commit 199)
-
-In Commit 199, an isolated prototype investigation was conducted to determine whether a **captured/static frosted-glass material** masked to a moving annulus could create the visual impression of a glass edge moving with the iris.
-
-#### Tested Approaches in Headed Chromium:
-1. **Experiment A (Captured DOM Surface via VT Named Group)**:
-   - Full-viewport DOM element with `backdrop-filter: blur(16px) saturate(1.35)` captured as `::view-transition-old(glass-annulus)`.
-   - An animated radial-gradient mask on `::view-transition-group(glass-annulus)` restricted visibility to a 14px annulus ($R_{\text{outer}} = R, R_{\text{inner}} = \max(0, R - 14\text{px})$) synchronized with the WAAPI circular iris.
-   - **Empirical Visual Result**: **Severe raster ghosting and text duplication (Rejected)**. Because the captured material is a frozen raster snapshot of the pre-transition document, revealing it through a moving ring slices stationary old-theme content into the ring. When moving over cards or headers, text ("Active Roster Configuration", toggle button, badges) appears severed and doubled. It resembles a circular tear revealing an old photograph rather than a moving glass lens.
-2. **Experiment B (CSS Snapshot Material)**:
-   - Applying `filter: blur(...)` to `::view-transition-old(root)`.
-   - **Empirical Visual Result**: **Unrevealed viewport degradation (Rejected)**. Blurring `old(root)` blurs the entire viewport outside the expanding iris, muddying the previous theme before it is revealed.
-3. **Experiment C (Decorative Annulus Wavefront Overlay)**:
-   - An SVG/DOM stroke ring tracking the iris without raster capture.
-   - **Empirical Visual Result**: **Synthetic neon ripple appearance (Rejected)**. Without live optical refraction of underlying pixels, the overlay looks like an artificial geometric ripple or halo rather than physical glass material.
-
-#### Final Decision & Architectural Stance:
-- **Outcome C (Visually Poor & Distracting)**: Integrating a captured frosted-glass annulus is definitively rejected. The visual artifacts (severed text, ghosting, raster parallax) severely degrade interface craft and violate Apple HIG guidelines (`liquid-glass.md` § Layer discipline & `motion.md` § Providing feedback).
-- **Production Baseline Preserved**: Production code (`executable_test/js/theme.js`, `executable_test/css/modals.css`) strictly preserves the Commit 198 baseline:
-  - WAAPI-driven circular reveal on `::view-transition-new(root)`.
-  - Static monochrome specular filter (`--vt-edge-specular: drop-shadow(...)`).
-  - Zero DOM wavefront layers, zero runaway cascade (`transitionstart` count $\equiv 0$).
-  - Authentic `backdrop-filter` glassmorphism preserved exclusively on static/floating UI components (`.card`, `.header`, `.stepper-dock`).
-
-### Icon Animation Contract (`spin-morph`)
-
-In commit 197, `spin-morph` was refactored to **Option A (CSS `@keyframes` animation)**:
-- While `.theme-transitioning * { transition: none !important }` suppresses all CSS transitions during theme switching, it does **not** suppress CSS `@keyframes` animations.
-- The theme toggle icon is animated via `@keyframes spin-morph-kf` with an intentional **280ms** duration and spring easing `cubic-bezier(0.34, 1.56, 0.64, 1)`.
-- The icon duration is completely decoupled from the WAAPI iris duration token (`THEME_TRANSITION_DURATION_MS = 450`).
-- Under `prefers-reduced-motion: reduce`, the icon animation is bypassed in JavaScript and disabled in CSS via `@media (prefers-reduced-motion: reduce) { .theme-icon-container.spin-morph { animation: none; } }`.
-
-### DOM Wavefront Eliminated (commit 195, confirmed commit 196/197)
-
-Commits 194 and 195 explored a `.theme-glass-wavefront` DOM overlay. This approach failed on three counts and has been permanently eliminated:
-
-1. **Snapshotted into old-page capture**: DOM elements created *before* `document.startViewTransition()` are captured in `::view-transition-old(root)` — not live overlays above the transition.
-2. **z-index claim was false**: The VT layer is a separate rendering pass. DOM z-index has no defined relationship to it.
-3. **backdrop-filter on snapshot**: `backdrop-filter` on a snapshotted element blurs frozen pixels, not live composited content.
-
-### Accessibility
-
-**Reduced Motion (`prefers-reduced-motion: reduce`)**
-- WAAPI iris is JS-owned, so the reduced-motion bypass occurs in JS *before* starting the View Transition.
-- When active: no WAAPI `clip-path` animation, no icon `spin-morph`, theme applied directly via a simple crossfade or direct DOM update.
-- CSS `prefers-reduced-motion` block sets `filter: none` on the VT pseudo-elements for completeness.
-
-**Reduced Transparency (`prefers-reduced-transparency: reduce`)**
-- `modals.css` increases specular opacity and removes transparency-dependent decoration.
-
-**Increased Contrast (`prefers-contrast: more`)**
-- `modals.css` increases edge contrast, removes soft glow, strengthens border visibility.
+- **Separation of Responsibilities**: WAAPI is the sole owner of circular geometry (`THEME_TRANSITION_DURATION_MS = 450ms`); CSS owns static edge styling (`--vt-edge-specular`).
+- **Reduced Motion Awareness**: When `prefers-reduced-motion: reduce` is detected (from Windows Settings or app preferences), spatial transitions and iris animations are bypassed in JavaScript before starting the transition.
 
 ---
 
-## ♿ Accessibility Settings Architecture & Preference Precedence (Commits 201 & 202)
+## ♿ Accessibility Compliance & Assessment Boundaries
 
-In Commits `201` and `202`, the application introduced and polished an architectural **Accessibility Settings** section within the Configuration dialog (`#cfgTabAccessibility` / `#cfgPaneAccessibility`), grounded in Apple HIG, Windows UX guidelines, and WCAG 2.1 AA principles.
-
-### 1. Capability Evaluation & Separation of Concerns
-Prior to implementation, accessibility capabilities were evaluated to separate **user-configurable preferences** from **mandatory baseline behaviors**:
-
-| Capability | Evaluated Scope | Configurable in Settings? | Architectural Justification |
-| :--- | :--- | :--- | :--- |
-| **Interface Motion** | WAAPI circular iris, icon `spin-morph`, spinner transitions | **Yes** (`system`, `reduce`, `full`) | Provides explicit control over vestibular-triggering large-scale motion while allowing an opt-in override if desired. |
-| **Surface Transparency** | Glassmorphism, `backdrop-filter: blur()`, translucency | **Yes** (`system`, `reduce`, `glass`) | Allows users with visual acuity or contrast impairments to disable glass blur in favor of high-legibility solid opaque surfaces. |
-| **High Contrast** | Border contrast, text lightness, specular removal | **No (System-driven)** | `forced-colors: active` and `prefers-contrast: more` are automatically honored via CSS tokens. Adding an app toggle without distinct brand palette redesign creates semantic confusion. |
-| **Text / UI Scaling** | Typography font size, container dimensions | **No (System-driven)** | Fixed desktop bounds (1120×780) are scaled natively by Windows DPI scaling and Chromium page zoom (`Ctrl +/-`). Artificial internal font scaling risks container clipping. |
-| **Keyboard & Focus** | Tab index, visible focus rings, escape listeners, modal trap | **No (Mandatory baseline)** | Core accessibility requirement that must always remain active, never disabled behind a setting. |
-| **Non-Color Cues** | Status badges, icons, text labels, step connectors | **No (Mandatory baseline)** | Information must never depend on color alone; guaranteed at the component level. |
-
-### 2. Terminology & Conceptual Clarity (Commit 202 Polish)
-To ensure terminology adheres to neutral accessibility standards rather than proprietary marketing metaphors:
-- **Motion Options**:
-  - `system`: **Follow System (Default)** — Strictly tracks the host OS preference.
-  - `reduce`: **Reduced Motion** — Suppresses large-scale viewport transitions and iris reveals.
-  - `full`: **Full Motion (Override system preference)** — Explicit user override that re-enables full View Transition circular iris animations even when the OS requests reduced motion.
-- **Transparency Options**:
-  - `system`: **Follow System (Default)** — Aligns with host OS transparency settings.
-  - `reduce`: **Reduced Transparency (Solid opaque)** — Disables all `backdrop-filter` blurring and enforces solid `#1e293b` (dark) / `#f8fafc` (light) backgrounds.
-  - `glass`: **Standard Transparency (Frosted glass)** — Restores CvSU Gen's standard Apple HIG frosted glass system. The storage key remains `glass` for backward compatibility, while the UI presents a neutral, unambiguous label.
-
-### 3. Windows Animation Effects & WebView2 Interaction
-In the Windows desktop environment:
-- The OS toggle at **Settings → Accessibility → Visual effects → Animation effects** (backed by Windows API `SystemParametersInfo(SPI_GETCLIENTAREAANIMATION)`) controls global application animations.
-- When Animation effects are **OFF**, Edge Chromium / WebView2 automatically reports `window.matchMedia('(prefers-reduced-motion: reduce)').matches === true`.
-- In Commit 200, packaged runtime diagnosis confirmed that `CvSU Gen.exe` correctly detected this reduced motion preference, leading `theme.js` to bypass the WAAPI circular iris.
-- Under Commit 201/202, users can choose **Full Motion** in Settings to opt out of the system suppression exclusively within CvSU Gen.
-
-> [!WARNING]
-> **Full Motion Override Guidance**: Full Motion is an explicit opt-in override designed for users who want rich transitions on desktop setups where Windows animations are globally turned off for performance reasons. It is **NOT** universally recommended, as reduced motion exists primarily to protect users with vestibular conditions from dizziness and motion sensitivity.
-
-### 4. Precedence Matrix: System vs. App Configuration
-System accessibility settings remain **authoritative by default** (`system`), while providing deterministic override modes:
-
-#### Motion Preference Precedence:
-| App Motion Setting (`cvsu_acc_motion`) | System `prefers-reduced-motion` | Effective Preference | `data-acc-motion` DOM attribute | View Transition Iris Behavior |
-| :--- | :--- | :--- | :--- | :--- |
-| `system` (Default) | `no-preference` (Off) | `no-preference` | `system` | Animated 450ms WAAPI circular iris |
-| `system` (Default) | `reduce` (On) | `reduce` | `reduce` | **Instant theme switch (Motion suppressed)** |
-| `reduce` | `no-preference` (Off) | `reduce` | `reduce` | **Instant theme switch (Motion suppressed)** |
-| `reduce` | `reduce` (On) | `reduce` | `reduce` | **Instant theme switch (Motion suppressed)** |
-| `full` | `no-preference` (Off) | `no-preference` | `no-preference` | Animated 450ms WAAPI circular iris |
-| `full` | `reduce` (On) | `no-preference` | `no-preference` | **Animated 450ms WAAPI circular iris (User override)** |
-
-#### Transparency Preference Precedence:
-| App Transparency Setting (`cvsu_acc_transparency`) | System `prefers-reduced-transparency` | Effective Preference | `data-acc-transparency` DOM attribute | Surface Treatment |
-| :--- | :--- | :--- | :--- | :--- |
-| `system` (Default) | `no-preference` | `no-preference` | `system` | Standard Frosted Glass (`backdrop-filter: blur(20px)`) |
-| `system` (Default) | `reduce` | `reduce` | `reduce` | Solid opaque surfaces (`backdrop-filter: none !important`) |
-| `reduce` | Any | `reduce` | `reduce` | **Solid opaque surfaces (`backdrop-filter: none !important`)** |
-| `glass` | Any | `no-preference` | `glass` | Standard Frosted Glass (`backdrop-filter: blur(20px)`) |
-
-### 5. Persistence, Runtime Lifecycle & Dynamic Listeners
-- **Storage Mechanism**: Backed by browser `localStorage`:
-  - `cvsu_acc_motion`: `"system" | "reduce" | "full"`
-  - `cvsu_acc_transparency`: `"system" | "reduce" | "glass"`
-- **Bootstrap Lifecycle**: `applyAccessibilityPreferences()` runs synchronously in `executable_test/js/theme.js` at script load before first paint.
-- **Dynamic Media-Query Listeners**: `theme.js` binds `change` listeners to `window.matchMedia('(prefers-reduced-motion: reduce)')` and `window.matchMedia('(prefers-reduced-transparency: reduce)')`. If the host OS setting changes while CvSU Gen is open, effective preferences update reactively without page reload.
-- **DOM Attribute Binding**: Applies `data-acc-motion` and `data-acc-transparency` to `document.documentElement`, driving CSS surface overrides and focus styles immediately.
-- **In-Flight Transition Behavior**: Changing an accessibility setting during an active 450ms View Transition animation intentionally allows the in-flight animation to complete cleanly. Future transitions immediately execute according to the updated preference.
-- **Reset Configuration**: Invoking `resetConfigSettings()` restores both preferences to `"system"`, resetting DOM attributes and UI dropdowns immediately.
-
-### 6. Theme-Transition Integration
-In `theme.js`, the View Transition theme toggle checks `getEffectiveMotionPreference()` before starting the transition:
-```javascript
-if (getEffectiveMotionPreference() === "reduce") {
-    // Honor reduced motion: instant theme switch, no WAAPI circular iris
-    document.documentElement.setAttribute("data-theme", targetTheme);
-    saveTheme(targetTheme);
-    updateThemeIcons(targetTheme);
-    return;
-}
-```
-This guarantees that when reduced motion is effective (either via Windows Animation effects or app setting), large-scale spatial transitions are strictly prevented.
+The UI implements accessibility features informed by Apple HIG and WCAG 2.2 AA standards:
+- **WCAG 2.2 SC 2.4.11 Focus Not Obscured (Minimum) (Level AA)**: Enforced via `scroll-padding-bottom: calc(var(--dock-height) + 16px)` on scrollable areas, ensuring focused inputs and table buttons are never occluded by the sticky status dock.
+- **WCAG 2.2 SC 2.4.12 Focus Not Obscured (Enhanced) (Level AAA)**: Evaluated separately. While most controls achieve complete non-obscuration, full Level AAA compliance across all desktop zoom levels is an aspirational standard.
+- **WCAG 2.2 SC 2.5.7 Dragging Movements (Level AA)**: File dropzones provide equivalent single-pointer click-to-browse alternative actions.
+- **WCAG 2.2 SC 2.5.8 Target Size (Minimum) (Level AA)**: Interactive buttons and table controls meet the 24×24px minimum bounding box or qualify under inline/essential exceptions.
+- **Visible Focus Rings (SC 2.4.7)**: Explicit 2px high-contrast focus rings with 2px offset on all interactive controls.
+- **Boundary Notice**: Automated Playwright accessibility scans (Axe-core) and screenshot reviews provide bounded evidence of accessibility quality. They do not constitute a formal third-party WCAG certification.
 
 ---
 
----
-
-## 🧩 Adaptive TemplateManifest UI Binding & WCAG Accessibility Hardening
-
-Phase 4 connected `DeterministicTemplateAnalyzer` and `TemplateManifest` directly to the custom template configuration interface in `executable_test/ui.html` and `executable_test/js/templates.js`.
-
-### 1. Semantic DOM Structure & ARIA Semantics
-- **Inspection Result Container (`#customTemplateResultCard`)**:
-  - `role="region"`
-  - `aria-live="polite"`
-  - `aria-labelledby="customTemplateResultCardHeading"`
-- **Heading**: `#customTemplateResultCardHeading` provides the accessible landmark label.
-- **Compatibility Status (`#customCompatibilityBadge`)**:
-  - `role="status"`
-  - `aria-label="Template Compatibility Status"`
-  - Displays dynamic state: `✓ Ready` (`var(--accent-emerald)`) or `⚠️ Incomplete` (`var(--accent-amber)`).
-- **Actionable Diagnostics Region (`#customTemplateDiagnostics`)**:
-  - `role="status" aria-live="polite"`
-  - Automatically unhides when `manifest_summary.diagnostics` are present to inform the user of detected capabilities and missing slots.
-
-### 2. Form Input Labeling & Assistive Tech Accessibility
-- `#customFormTitle`: Bound with `aria-label="Form Display Title"` and `aria-required="false"`.
-- `#customFormSuffix`: Bound with `aria-label="File Suffix (Upper snake-case)"` and `aria-required="true"`.
-- `#customFormTargetFolderSelect`: Bound with `aria-label="Target Folder"`.
-- `#customFormCustomFolderInput`: Bound with `aria-label="Custom Relative Subfolder"`.
-
-### 3. Screen Reader Announcements & Keyboard Focus Management
-- **Analysis Completion Announcement**: `window.announceA11y(...)` announces template analysis results, indicating whether the template is verified and ready or diagnostics are available.
-- **Focus Shift**: Automatically focuses `#customFormTitle` upon inspection result rendering, enabling immediate keyboard editing without tabbing through prior elements.
-- **Preview Discard / Cancellation**: Dismissing the card (`cancelCustomTemplatePreview()`) returns focus directly to `#templateDropzone` and broadcasts an accessible confirmation via `announceA11y`.
-
----
-
-## 🗺️ Visual Slot Mapper Drawer & 2D Virtual Grid (`#modalSlotMapperBackdrop`)
-
-Phase 8 surfaces `TemplateManifest` and `DocxGridTable` directly in the UI through an interactive visual slot mapper drawer:
-
-1. **2D Virtual Grid Rendering (`#slotMapperGridContainer`)**:
-   - Visualizes normalized table cells across `<w:gridSpan>` and `<w:vMerge>`.
-   - Each cell exposes `tabindex="0"`, `role="gridcell"`, hover micro-animations, and keyboard navigation (`Tab`, `Enter`, `Space`).
-   - Distinct visual state badges:
-     - `cell-selected`: 2px emerald outline with active coordinates.
-     - `cell-has-slot`: Staged or committed semantic slot override (`{{instructor}}`, `{{course_code}}`, etc.).
-     - `cell-is-roster`: Repeating student roster table topology.
-     - `cell-is-signatory`: Discovered footer signatory block anchor.
-     - `cell-continuation`: Merged continuation cell with reduced opacity.
-
-2. **Cell Inspector & Slot Binding (`#slotMapperInspector`)**:
-   - Displays cell coordinates `[row, col]`, span topology (`rowspan x colspan`), and discovered heuristic role.
-   - Allows users to bind standard semantic slots (`instructor`, `course_code`, `section`, `room`, etc.) or custom token identifiers.
-   - Configures exact injection strategies: `exact_cell`, `cell_right`, `cell_below`, `colon_value`, or `placeholder`.
-   - Persists cleanly via `save_template_slot_overrides(file_path, overrides_dict)` and connects dynamically to `DynamicDocumentRenderer`.
-
----
-
-## 🔍 Pre-Flight Sample Document Preview Modal (`#modalPreflightPreviewBackdrop`)
+## 🔍 Pre-Flight Sample Document Preview (`#modalPreflightPreviewBackdrop`)
 
 Provides an in-memory document synthesis preview before launching a complete batch:
-
-1. **Dynamic Font Scaling Badge (`#previewFontScalingBadge`)**:
-   - Real-time tier resolution based on student count:
-     - `<= 30` students &rarr; `8pt Tier` (Emerald badge)
-     - `31 - 35` students &rarr; `7pt Tier` (Amber badge)
-     - `> 35` students &rarr; `6pt Tier` (Rose badge)
-2. **Pre-Flight Section Card (`#previewSectionInfoCard`)**:
-   - Displays target Course & Section, Schedule Code, Subject Name, Instructor, and verified Student Count.
-3. **Injected Semantic Fields Table (`#previewResolvedSlotsTable`)**:
-   - Displays exact field names and their dynamically resolved values.
-4. **Sample Roster Table (`#previewRosterTable`)**:
-   - Previews the first 10 student records (Number, Student ID, Name, Gender) mapped to template columns.
-5. **Signatory Chain Hierarchy (`#previewSignatoriesList`)**:
-   - Previews the resolved N-tier organizational hierarchy (Instructor &rarr; Dept Chair &rarr; College Dean).
+- **Dynamic Font Scaling Badge**: Real-time tier resolution based on student count (8pt Tier for $\le 30$ students; 7pt Tier for $31-35$; 6pt Tier for $> 35$).
+- **Resolved Semantic Slots Table**: Previews resolved instructor, course code, room, and semester strings.
+- **Sample Roster Table**: Displays first 10 parsed student records.
+- **Signatory Hierarchy**: Displays resolved multi-tier approval chain.
 
 ---
 
-## ⏱️ Batch Progress, Cooperative Cancellation & Headless PDF Export
+## ⏱️ Batch Generation Telemetry & Cooperative Cancellation
 
-1. **Determinate Progress Telemetry (`#progressContainer`)**:
-   - ARIA progressbar compliance: `role="progressbar"`, `aria-valuemin="0"`, `aria-valuemax="100"`, and live `aria-valuenow`.
-   - Dual-channel telemetry: PyWebView event push via `window.onGenerationProgress` combined with 350ms cooperative polling of `get_generation_progress()`.
-   - Real-time status display: `[X/Y] Generating <filename>...` with active stopwatch elapsed timer (`#progressElapsedTimer`).
-
-2. **Cooperative Cancellation (`#btnCancelGeneration`)**:
-   - Mid-batch cancellation checked between document renders.
-   - Halted state safely preserves already generated documents in the output directory.
-
-3. **Optional Headless PDF Export (`#checkExportPdf`)**:
-   - Toggleable pipeline step converting generated `.docx` files into class-specific folders (`CEIT_Forms/` and `Attendance/`) alongside chronologically merged attendance and academically ordered CEIT bundles.
-   - Powered by `PdfExporter` supporting native Windows Microsoft Word COM automation via sandboxed PowerShell (out-of-process, zero external Python C-dependencies, immune to RPC teardown crashes in Python 3.14) and in-process `win32com.client` with persistent batching, `docx2pdf`, and LibreOffice (`soffice --headless`) with graceful non-fatal fallback.
-   - Automatically surfaces skipped converter notices in completion toasts and UI metrics pills when no supported converter binary is detected.
-
-
-
-
-
-
+Stage 6 (**Generate**) handles the batch execution lifecycle:
+- **Stage vs. Button Labeling**: The navigation context is named **Generate**. The primary process button within the Stage 6 panel (`#cardStep6`) is `#processBtn` (housing `#processBtnLabel`), with the visible button label **Initialize Workflow**.
+- **Preflight Blockers**: If required inputs (Schedule, Rosters, at least 1 Section, at least 1 Package, or Output Directory) are missing, preflight displays actionable warning banners with direct navigation buttons to jump to the incomplete stage.
+- **Progress Telemetry (`#progressContainer`)**: ARIA progressbar compliance (`role="progressbar"`, live `aria-valuenow`, `aria-live="polite"`). Dual-channel telemetry combines PyWebView event callbacks with 350ms cooperative polling.
+- **Cooperative Cancellation (`#btnCancelGeneration`)**: Mid-batch cancellation checked between document generation tasks. Cancelling halts future generations safely while **preserving all completed output files on disk**.

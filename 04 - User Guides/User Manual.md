@@ -5,92 +5,149 @@ tags:
   - guide
   - user-manual
 status: active
-last_modified: 2026-10-15
+last_modified: 2026-11-05
 source_of_truth:
-  - executable_test/README.md
   - executable_test/ui.html
-  - modules/parsers/calendar_resolver.py
+  - executable_test/js/stepper.js
+  - executable_test/js/step1.js
+  - executable_test/js/step2.js
+  - executable_test/js/step3.js
+  - modules/services/orchestrator.py
 ---
 
 # User Manual
 
-A complete guide for faculty members using the **CvSU Document Generator** desktop application.
+A comprehensive faculty guide for generating academic documents using the **CvSU Document Generator** desktop application.
 
 Related notes:
 - [[CvSU Document Generator MOC]]
 - [[Input File Conventions]]
 - [[Troubleshooting]]
-- [[v1.0.1]]
+- [[UI Architecture]]
+- [[v1.1.0]]
 
 ---
 
 ## 💻 System Requirements
 
 - **Operating System**: Windows 10 or Windows 11 (64-bit).
-- **Python / Python Packages**: None required on the target machine for the packaged executable. The Python runtime and application packages are embedded in `CvSU Gen.exe`.
-- **Microsoft Edge WebView2 Evergreen Runtime**: Required host prerequisite. Included with Windows 11; present on most Windows 10 installations (version 1803+ with November 2022 update baseline), though some LTSC, managed, or clean setups may lack it. The packaged application does not bundle an automatic WebView2 installer, and no explicit application-level runtime detector was verified in the current source.
-- **.NET Framework 4.7.2+ Project Baseline**: Supported Windows baseline required for the native desktop window host and drag-and-drop integration. While Python.NET supports older versions, 4.7.2+ is the repository's verified baseline.
-- **Office Software**: Microsoft Word & Excel or any compatible office suite (only needed for opening/editing generated DOCX/XLSX files; the generator itself creates files natively).
+- **Python Runtime**: None required on the user workstation. The Python engine and all required libraries are bundled inside `CvSU Gen.exe`.
+- **Microsoft Edge WebView2 Evergreen Runtime**: Standard Windows component (built into Windows 11 and up-to-date Windows 10 installations).
+- **Office Software**: Microsoft Word & Excel (or compatible office suites) to view or print the generated `.docx` and `.xlsx` files. The generator produces files natively without requiring Office to be open.
 
 ---
 
-## 🚀 The 6-Step Workflow
+## 🧭 The Six-Stage Workflow Overview
+
+The application organizes document generation into **six contextual stages**. You can navigate back and forth between stages using the top workflow ribbon without losing your progress:
 
 ```mermaid
 graph LR
-    S1["Step 1: Schedule"] --> S2["Step 2: Rosters"]
-    S2 --> S3["Step 3: Confirm Classes"]
-    S3 --> S4["Step 4: Boundaries (Opt)"]
-    S4 --> S5["Step 5: Output Folder"]
-    S5 --> S6["Step 6: Initialize"]
+    S1["Stage 1: Schedule"] --> S2["Stage 2: Rosters"]
+    S2 --> S3["Stage 3: Packages"]
+    S3 --> S4["Stage 4: Dates"]
+    S4 --> S5["Stage 5: Output"]
+    S5 --> S6["Stage 6: Generate"]
 ```
 
-### Step 1: Select Instructor Schedule
-Click **"Browse File"** under Section 1 or drag and drop your master schedule file (`.xls` or `.xlsx`) directly onto the application window. The system extracts your instructor name, college header, semester, and schedule blocks.
+### Stage Hierarchy & Panel Headings:
 
-### Step 2: Select Student Rosters
-Click **"Browse Data"** under Section 2 or drag and drop all class rosters (`.xlsx` or `.csv`). You can multi-select files or drop entire batches at once. If any files are missing the standard portal naming pattern, use the dropdown menus to manually link them to the correct schedule code.
-
-### Step 3: Confirm Detected Classes & Subject Types
-Review the detected sections. For each class:
-- **Lecture only**: Uses `GRADING_LECTURE_TEMPLATE.xlsx`.
-- **Lecture and Lab**: Uses `GRADING_LECTURE_LAB_TEMPLATE.xlsx`.
-Use the dropdown selector to manually override the auto-detected classification if needed.
-
-### Step 4: (Optional) Set Semester Date Boundaries
-Select a **Start Date** and **End Date** if you want attendance logs to cover a specific window. Leaving this blank defaults to the full institutional semester calendar.
-
-### Step 5: Choose Target Output Folder
-Click **"Browse Path"** and choose any directory on your drive where the output folders should be generated.
-
-### Step 6: Initialize Workflow
-Click **"Initialize Workflow"**. Real-time progress is displayed with animated status indicators. You can click **"Cancel Generation"** at any moment to abort processing safely. Output files that are already completed will remain intact on your drive.
+| Stage Navigation | Actual Panel Heading | Panel Element ID | Heading Element ID | Navigation Chip ID |
+| :--- | :--- | :--- | :--- | :--- |
+| **Schedule** | Select Instructor Schedule (.xls or .xlsx) | `#cardStep1` | `#stageHeading1` | `#chipStep1` |
+| **Rosters** | Select Student Rosters (.xlsx, .xls, or .csv) | `#cardStep2` | `#stageHeading2` | `#chipStep2` |
+| **Packages** | Confirm Detected Classes & Subject Types | `#cardStep3` | `#stageHeading3` | `#chipStep3` |
+| **Dates** | (Optional) Set Semester Date Boundaries | `#cardStep4` | `#stageHeading4` | `#chipStep4` |
+| **Output** | Choose Target Output Folder | `#cardStep5` | `#stageHeading5` | `#chipStep5` |
+| **Generate** | Initialize Workflow | `#cardStep6` | `#stageHeading6` | `#chipStep6` |
 
 ---
 
-## 📅 Academic Calendar, Holiday & Suspension Settings
+## 📋 Step-by-Step Walkthrough
 
-The application features an interactive **Academic Calendar & Suspension Engine** (accessible via **Settings ⚙️ → 📅 Academic Calendar**) that eliminates static calendar assumptions and dynamically resolves national, provincial, and unexpected weather interruptions.
+### Stage 1: Schedule — "Select Instructor Schedule (.xls or .xlsx)"
+In this initial stage, you load your official faculty teaching schedule:
+1. **Choose File**: Click **"Browse Schedule"** or drag and drop your schedule file (`.xls` or `.xlsx`) directly onto the designated dropzone.
+2. **Review Extracted Details**: The application automatically extracts your instructor name, college/campus header, semester, academic year, and scheduled class blocks.
+3. **Continue**: Once your schedule is loaded, click **"Continue to Rosters"** in the stage action panel.
 
-### 1. Attendance Matrix Column Policy
-- **Omit Date Column (`OMIT_COLUMN`, Default)**: Excludes non-working days from the monthly attendance sheet so that only active teaching days receive columns.
-- **Keep Column & Stamp Label (`STAMP_COLUMN`)**: Keeps the scheduled meeting date in the header row and stamps compact status tags (`HOLIDAY`, `SUSP.`, `EXAM`, `EVENT`) in student cells with OpenXML cell border preservation and auto-scaled font.
+---
 
-### 2. Smart Memo Announcement & .ics Importer
-Faculty can import calendar exceptions without manually typing dates:
-- **Paste Memo Text**: Paste official OvPAA circulars, PDRRMO weather advisories, or hashtag announcements into the text box:
-  ```text
-  Oct 20-24, 2026: Midterm Examination Week
-  Nov 2, 2026 - All Souls' Day
-  Aug 24, 2026: Typhoon Kristine Suspension #WalangPasok
-  ```
-  Click **"📥 Parse Announcement"** to automatically parse dates, ranges, and categories.
-- **Import .ics Calendar**: Click **"📅 Import .ics Calendar"** to load standard iCalendar files offline.
+### Stage 2: Rosters — "Select Student Rosters (.xlsx, .xls, or .csv)"
+In this stage, you provide the student enrollment rosters for your classes:
+1. **Add Rosters**: Click **"Browse Rosters"** or drag and drop your downloaded roster spreadsheets (`.xlsx` or `.csv`). You can drop multiple files or entire folders simultaneously.
+2. **Automatic Portal Cleaning & Matching**: The system automatically strips unnecessary portal columns, detects student numbers, names, and gender, and matches each roster to your scheduled classes based on schedule codes or course identifiers.
+3. **Resolving Mismatches / Repair**: If any roster has custom column headers or an unrecognized filename:
+   - Use the roster table's dropdown to manually link the roster to the correct section.
+   - Click **"Map Columns"** to open the column mapper dialog if the spreadsheet uses non-standard header names.
+4. **Continue**: When your rosters are verified, click **"Continue to Packages"**.
 
-### 3. Interactive Meeting Dates Strip
-- Select your target **Year**, **Semester**, and **Class Pattern** (e.g. Monday/Thursday, Tuesday/Friday, Wednesday, Saturday).
-- The dynamic date strip previews all candidate meeting dates for the semester.
-- **1-Click / Keyboard Cycling**: Click or press <kbd>Space</kbd> / <kbd>Enter</kbd> on any date pill to cycle its status:
-  $$\text{🟢 Active} \longrightarrow \text{🔴 Holiday} \longrightarrow \text{🟠 Suspended} \longrightarrow \text{🟣 Exam Week} \longrightarrow \text{🔵 Campus Event}$$
-- Changes are saved immediately and applied whenever attendance sheets are generated.
+---
 
+### Stage 3: Packages — "Confirm Detected Classes & Subject Types"
+Stage 3 is the full-width batch workbench where you define document packages, verify detected classes, and configure subject classifications:
+
+#### 1. Global Document Package Selection
+At the top of the workbench, select the document packages you wish to produce for this run:
+- **☑ Attendance Sheets** (`#checkAttendance`): Monthly attendance tracking sheets with calendar grids.
+- **☑ CEIT Dept Forms** (`#checkCeit`): Syllabus receipts, class records, and departmental forms.
+- **☑ Official Grade Sheets** (`#checkGrades`): Official Excel grade calculation workbooks.
+
+> [!IMPORTANT]
+> **Global Selection Scope (No Per-Section Package Overrides)**:
+> Selected document packages apply **uniformly to all checked sections** in the generation batch. The application does not support applying different package combinations to different sections in a single run.
+
+#### 2. Class Matrix, Per-Section Classification & Bulk Controls
+Review and configure your classes in the 8-column class matrix:
+- **Selection Checkboxes (`col-select`)**: Check the box for each section you wish to generate (row selector `.item-class-check`). While clicking "Continue to Dates" (`activateStage(4)`) freely transitions to Stage 4 without blocking navigation, **generation preflight requires at least one selected section**. If no sections are selected when initializing the workflow in Stage 6 (`selectedClasses.length === 0`), generation is blocked with a "No Classes Selected" warning toast, and you are automatically returned to the Packages stage (`cardStep3`).
+- **Per-Section Classification (`col-classification`)**: Each class row features an editable dropdown control (`.class-type-select`) with two options:
+  - **"Lecture and Lab"** (`lecture_lab`): Selects the integrated lecture and laboratory grading template (`GRADING_LECTURE_LAB_TEMPLATE.xlsx` with Lecture, Laboratory, Consolidated, and Grading Sheet tabs) and multi-session attendance templates.
+  - **"Lecture only"** (`lecture_only`): Selects the standard lecture grading template (`GRADING_LECTURE_TEMPLATE.xlsx` with Lecture and Grading Sheet tabs) and lecture attendance templates.
+- **Bulk Classification Updates**: You can check multiple sections and use the bulk classification action (`applyBulkClassType`) to toggle all checked classes to "Lecture and Lab" or "Lecture only" in a single action.
+- **Persistent Overrides**: Any manual classification change is automatically preserved in local storage under key `classTypeOverrides` (`saveClassTypeOverrides`) and restored on launch (`applyClassTypeOverrides`). During generation, these overrides are collected into `typeOverrides` and transmitted directly to the generation engine (`run_generation`).
+- **Contextual Inspector (`col-actions`)**: Click the **"Inspect"** button on any class row to open the side drawer, where you can verify enrolled student counts and roster matching details.
+
+> [!NOTE]
+> **Do Not Conflate Classification with Package Selection**:
+> Classification defines the pedagogical structure of each course (Lecture and Lab vs. Lecture only) and is configurable per-section with persistent overrides. In contrast, package selection determines which document families are generated (Attendance Sheets, CEIT Dept Forms, Official Grade Sheets) and is applied globally to the entire batch.
+
+3. **Continue**: When your packages, sections, and classifications are configured, click **"Continue to Dates"**.
+
+---
+
+### Stage 4: Dates — "(Optional) Set Semester Date Boundaries"
+In this stage, you configure the calendar parameters for attendance tracking:
+1. **Optional Boundaries**: Enter a **Start Date** and **End Date** if you want attendance sheets to cover a specific date range.
+2. **Standard Semester Defaults**: Leaving the dates blank is completely valid—the generator will automatically apply standard academic calendar boundaries for your semester.
+3. **Presets & Reset**: Use preset buttons for quick semester setups or click **"Reset Dates"** to restore default boundaries.
+4. **Continue**: Click **"Continue to Output"**.
+
+---
+
+### Stage 5: Output — "Choose Target Output Folder"
+In this stage, you select where generated documents will be saved on your computer:
+1. **Choose Folder**: Click **"Select Output Directory"** to open the native Windows folder picker.
+2. **Organized Structure**: Generated files are automatically organized into clean subfolders by course and section (e.g. `BSCS 3-1/CEIT_Forms/`, `BSCS 3-1/Attendance/`, etc.).
+3. **Continue**: Click **"Continue to Generate"**.
+
+---
+
+### Stage 6: Generate — "Initialize Workflow"
+The final stage performs safety preflight checks before creating files:
+1. **Preflight Summary**: The panel reviews your configuration:
+   - Schedule loaded
+   - Rosters matched
+   - Sections selected (must be $\ge 1$)
+   - Document packages selected (must be $\ge 1$)
+   - Output folder set
+2. **Blocker Alerts**: If any prerequisite is missing, a prominent alert identifies the issue with a direct link to return to that stage and fix it.
+3. **Starting Generation**: Click the primary button labeled **"Initialize Workflow"** (`#processBtn`) to begin generation.
+4. **Real-Time Progress**: A determinate progress bar tracks document creation in real time.
+5. **Safe Cancellation**: You may click **"Cancel Generation"** at any time. Cancellation halts processing safely between documents without corrupting or deleting files already created on your disk.
+6. **Completion**: When finished, click **"Open Output Folder"** to view your generated documents in Windows Explorer.
+
+---
+
+## ⚓ Status Dock
+
+A compact status bar at the bottom of the screen displays real-time readiness indicators for your schedule, rosters, packages, and output folder across all stages. Primary actions (such as "Continue" or "Initialize Workflow") remain clearly located within the active stage workspace itself.
