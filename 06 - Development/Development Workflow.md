@@ -129,8 +129,8 @@ When releasing a new version:
 ## 🗂️ Coordinated Workspace Architecture & Companion Repositories
 
 The project environment is organized as a **coordinated project workspace** composed of two distinct sibling Git repositories:
-- **Application Repository (`CVSU GENERATORS`)**: `C:\Users\danjo\OneDrive\CVSU GENERATORS` (`DrinkBoooz/cvsu-generators`)
-- **Documentation Repository (`cvsu-generator_documentation`)**: `C:\Users\danjo\OneDrive\cvsu-generator_documentation` (`DrinkBoooz/cvsu-generator_documentation`)
+- **Application Repository (`CVSU GENERATORS`)**: GitHub `DrinkBoooz/cvsu-generators` (local workspace root, branch `dev`)
+- **Documentation Repository (`cvsu-generator_documentation`)**: GitHub `DrinkBoooz/cvsu-generator_documentation` (companion vault root, branch `dev`)
 
 ### Dual-Repository Commit Workflow
 

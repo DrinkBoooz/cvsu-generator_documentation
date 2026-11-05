@@ -7,7 +7,7 @@ tags:
   - accessibility
   - design
 status: active
-last_modified: 2026-10-16
+last_modified: 2026-11-05
 source_of_truth:
   - executable_test/ui.html
   - executable_test/css/
@@ -16,12 +16,14 @@ source_of_truth:
 
 # HIG & UX Audit
 
-This document provides a comprehensive, evidence-backed evaluation of how the current **CvSU Document Generator** desktop user interface aligns with, partially aligns with, or intentionally diverges from Apple Human Interface Guidelines (HIG) principles and core cross-platform usability standards.
+This document provides a comprehensive, evidence-backed evaluation of how the **CvSU Document Generator** desktop user interface aligns with Apple Human Interface Guidelines (HIG) principles and core cross-platform usability standards.
 
 Related notes:
 - [[CvSU Document Generator MOC]]
 - [[UI Architecture]]
+- [[Documentation & Skills Audit]]
 - [[Development Workflow]]
+- [[Testing Strategy]]
 - [[User Manual]]
 
 ---
@@ -91,6 +93,10 @@ Every substantive assessment references current official Apple Developer documen
 ---
 
 ## 4. Final HIG Assessment Matrix
+
+> [!NOTE] Historical Baseline Notice (October 2026)
+> Sections 1 through 15 document the initial October 2026 HIG evaluation of the legacy layout (two-column dashboard grid, persistent floating action dock with primary `#btnDockProcess`, and repeated glass cards).
+> As of November 2026 (Phase 7 and Phase 8), these descriptions are **historical and superseded** by the **Hybrid Guided Batch Workbench** architecture (single-active-stage navigation, 8-column Packages matrix, compact status-only dock, and 4px base spacing scale). Refer to **Section 16: Phase 7 Implementation & Verification Addendum** for the active design implementation.
 
 | HIG Area | Current Implementation | Official Apple Source | Applicability | Classification | Evidence | Confidence |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -447,7 +453,7 @@ Commit `222` introduces the Phase 8 UI modernization suite, assessed against App
   - `test_obsidian_vault_wikilink_resolution` PASSED
   - `test_obsidian_moc_exists_and_links_all_categories` PASSED
 - **Source Code Integrity**:
-  - Application repository (`C:\Users\danjo\OneDrive\CVSU GENERATORS`) working tree is completely clean and untouched (`git status`).
+  - Application repository (`DrinkBoooz/cvsu-generators`, branch `dev`) working tree is completely clean and untouched (`git status`).
 - **Whitespace / Formatting Check**:
   - `git diff --check` passes with 0 whitespace errors.
 
@@ -458,3 +464,45 @@ Commit `222` introduces the Phase 8 UI modernization suite, assessed against App
 1. **Auditory Screen Reader Experience**: While ARIA markup, live regions, and progress bar attributes are verified in source and DOM tests, actual synthesized speech cadence in Windows Narrator/NVDA remains unverified.
 2. **Dynamic DOM Accessibility Scans**: The axe-core engine was evaluated against initial page load; dynamic DOM states during active compilation progress and opened slide-over drawers have not been scanned by automated tools.
 3. **High Contrast Theme Visuals**: `@media (forced-colors: active)` rules are verified in `base.css`, but visual rendering under active Windows High Contrast themes was not evaluated in this headless Chromium session.
+
+---
+
+## 16. Phase 7 Implementation & Verification Addendum (November 2026)
+
+In November 2026 (Phase 7, Phase 7.2, and Phase 7.3), the desktop application underwent a comprehensive architectural refinement pass to eliminate interface clutter, implement responsive desktop constraints, adopt an Apple HIG-informed design system, and formalize WCAG 2.2 accessibility boundaries.
+
+### 16.1. Architectural Evolution: Hybrid Guided Batch Workbench
+The legacy interface described in Sections 1–13 has been formally superseded by the **Hybrid Guided Batch Workbench**:
+- **Genuine Single-Active-Stage Navigation**: The two-column grid and sticky stepper have been replaced by a centered, non-destructive six-stage navigation ribbon (`#workflowRibbon`). Exactly one stage (`.active-stage`) renders at a time, keeping application state in memory without multi-stage vertical clutter.
+- **Full-Width Packages Class Matrix**: Stage 3 features a responsive 8-column class table (`col-select`, `col-section`, `col-subject`, `col-schedule`, `col-classification`, `col-students`, `col-status`, `col-actions`).
+- **Per-Section Classification with Persistent Overrides**: Column `col-classification` provides an interactive dropdown (`.class-type-select`) configuring each section as "Lecture and Lab" (`lecture_lab`) or "Lecture only" (`lecture_only`), with bulk toggle support (`applyBulkClassType()`) and persistent `localStorage` key `classTypeOverrides` (`saveClassTypeOverrides()`) transmitted to generation orchestration.
+- **Global Batch-Level Document Package Selection**: Selected packages (**Attendance Sheets** [`#checkAttendance`], **CEIT Dept Forms** [`#checkCeit`], **Official Grade Sheets** [`#checkGrades`]) apply uniformly across all selected classes. Per-section package overrides are intentionally excluded from the backend contract.
+- **Generation Preflight Selection Guard**: While Stage 3 navigation ("Continue to Dates" invoking `activateStage(4)`) remains unblocked, **generation preflight requires at least one selected section**. If `selectedClasses.length === 0` (via matrix column `col-select` and row selector `.item-class-check`), initializing the workflow in `startGeneration()` is blocked with a "No Classes Selected" warning toast, and the user is returned to the Packages stage (`scrollToStep("cardStep3")`).
+- **Contextual Class Inspector Drawer**: Replaces inline card expansion with an on-demand slide-out drawer (`#classInspectorDrawer`) for detailed roster matching diagnostics.
+- **Compact Status-Only Dock**: The persistent bottom bar (`#bottomActionBar`) has been stripped of competing primary actions. It serves strictly as a scroll-aware readiness monitor, with primary actions relocated inside each active stage workspace.
+
+### 16.2. Visual System & 4px Spacing Scale
+- **Spacing Scale**: Enforces a strict **4px Base Spacing Scale** (`--space-1: 4px` through `--space-8: 32px`) applied consistently across padding, margins, table cells, and dialogs.
+- **Fluid Workspace Bounds**: The application shell scales fluidly up to `min(96%, 2160px)`, providing comfortable breathing room on 1920×1080 and 2560×1440 desktop displays without clipping on 880×640 minimums.
+- **De-Cluttered Hierarchy**: Outer nested cards, heavy border outlines, and excessive glassmorphic tints have been reduced in favor of calm typography, solid semantic surfaces, and subtle contrast boundaries.
+
+### 16.3. WCAG 2.2 AA Accessibility Formalization
+Accessibility compliance has been reassessed with explicit criterion distinctions:
+- **WCAG 2.2 SC 2.4.11 Focus Not Obscured (Minimum) (Level AA)**: Verified. Scrollable containers enforce `scroll-padding-bottom: calc(var(--dock-height) + 16px)`, ensuring keyboard-focused inputs and table buttons are never occluded by the sticky dock.
+- **WCAG 2.2 SC 2.4.12 Focus Not Obscured (Enhanced) (Level AAA)**: Acknowledged as an aspirational criterion separate from Level AA.
+- **WCAG 2.2 SC 2.5.7 Dragging Movements (Level AA)**: Verified. Dropzones provide full single-pointer click-to-browse alternative controls.
+- **WCAG 2.2 SC 2.5.8 Target Size (Minimum) (Level AA)**: Verified. Interactive buttons meet the 24×24px bounding box or inline spacing exception rules.
+- **Focus Visibility (SC 2.4.7)**: High-contrast 2px focus rings with 2px offset are verified across all interactive elements.
+- **Testing Boundaries**: Automated Playwright Axe-core scans and multi-viewport screenshot reviews provide bounded evidence of quality; they do not constitute third-party certification.
+
+### 16.4. Verification Evidence & Quality Assurance Record
+- **Targeted Phase 7 UI Regression Suite**: Passed **36 / 36 tests (100%)** in 43.88s:
+  - `tests/test_ui_consistency.py` (6 passed)
+  - `tests/test_scroll_aware_dock.py` (1 passed)
+  - `tests/test_playwright_accessibility.py` (8 passed)
+  - `tests/test_playwright_roster_mapping.py` (2 passed)
+  - `tests/test_playwright_e2e.py` (11 passed)
+  - `tests/test_pe_version_info.py` (5 passed)
+  - `tests/test_playwright_settings_modal.py` (3 passed)
+- **Visual Evidence Manifest**: **120 visual-review assets** captured across 5 standard desktop viewports (880×640, 1120×780, 1440×900, 1920×1080, 2560×1440), both Light and Dark themes, with 25% silhouette analyses and native captures.
+- **Formal Status**: Phase 7 visual refinement and Phase 8 documentation audit are officially validated and integrated. For comprehensive audit logs, refer to [[Documentation & Skills Audit]].

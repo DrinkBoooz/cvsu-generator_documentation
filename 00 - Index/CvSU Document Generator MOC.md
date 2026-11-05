@@ -5,7 +5,7 @@ tags:
   - index
   - moc
 status: active
-last_modified: 2026-10-15
+last_modified: 2026-11-05
 source_of_truth:
   - executable_test/
   - modules/
@@ -50,6 +50,7 @@ graph TD
     AgentArch["[[Agent System Architecture]]"]
     StateMgmt["[[State Management]]"]
     HIG["[[HIG & UX Audit]]"]
+    Audit["[[Documentation & Skills Audit]]"]
 
     Release["[[v1.1.0]]"]
 
@@ -84,7 +85,8 @@ graph TD
     Dev --> AgentInst
     Dev --> AgentArch
     Dev --> StateMgmt
-    AgentInst --> HIG
+    Dev --> HIG
+    Dev --> Audit
 
     Release --> MOC
 ```
@@ -100,7 +102,7 @@ graph TD
 - **[[Generator Pipeline]]**: Data parsing, class matching, and generator routing pipeline.
 - **[[Template Discovery Pipeline]]**: Dynamic template discovery, recipe validation, schema v2 contracts, and immutable lifecycle.
 - **[[Orchestrator Lifecycle]]**: Threading, progress telemetry, cancellation tokens, and error aggregation in `process_all`.
-- **[[UI Architecture]]**: Responsive 6-step workflow stepper, decoupled CSS architecture, inline visibility failsafe, and accessibility (WCAG 2.1 AA).
+- **[[UI Architecture]]**: Hybrid Guided Batch Workbench, 6 contextual stages (Schedule, Rosters, Packages, Dates, Output, Generate), fluid 2160px workspace, compact status-only dock, and WCAG accessibility.
 - **[[Persistent State Architecture]]**: Two-tier dedicated persistence model, application configuration vs user preferences, 0ms startup cache, and reset isolation.
 
 ### ⚙️ 02 - Document Generators
@@ -120,21 +122,22 @@ graph TD
 
 ### 📖 04 - User Guides & Operations
 
-- **[[User Manual]]**: Comprehensive 6-step guide for faculty members using the graphical interface.
+- **[[User Manual]]**: Comprehensive 6-stage walkthrough for faculty members using the batch workbench interface.
 - **[[Input File Conventions]]**: Faculty schedule spreadsheets and student roster naming rules.
-- **[[Troubleshooting]]**: Windows SmartScreen resolution, publisher certificates, and error diagnostics.
+- **[[Troubleshooting]]**: Windows SmartScreen resolution, publisher certificates, preflight checks, and error diagnostics.
 
 ### 🛠️ 06 - Development & Operations
 
-- **[[Development Workflow]]**: Branching strategy (`dev` vs `main`), commit rules, and versioning.
+- **[[Development Workflow]]**: Branching strategy (`dev` vs `main`), commit numbering rules, and release protocols.
 - **[[Testing Strategy]]**: Automated test suites in `tests/`, Pytest fixtures, Playwright UI testing, and vault verification.
 - **[[Build & Packaging]]**: PyInstaller standalone executable bundling, PE metadata, and Authenticode signing.
 - **[[Agent Instructions]]**: Global rules and protocol constraints for autonomous AI contributors modifying the repository.
 - **[[Agent System Architecture]]**: Specialized agent roles, governance boundaries, pruned tool configs, and automated test invariants.
 - **[[State Management]]**: Persistent preferences, application settings schema, and migration workflows.
-- **[[HIG & UX Audit]]**: Analysis of Apple Human Interface Guidelines and WCAG 2.1 compliance.
+- **[[HIG & UX Audit]]**: Analysis of Apple Human Interface Guidelines, WCAG 2.2 AA accessibility assessments, and Phase 7 verification evidence (36/36 tests, 120 visual assets).
+- **[[Documentation & Skills Audit]]**: Comprehensive verification of 761 documentation files, 74/74 API bridge methods, 254 agent skills, and governance integrity.
 
-### 🚀 05 - Releases & Changelogs
+### 🚀 05 - Releases & Changelog
 
 - **[[v1.1.0]]**: Release notes for version 1.1.0 (Self-Analyzing Dynamic Template Engine, Apple HIG Faculty Defaults, Header Live Preview, Uniform Settings Geometry).
 - **[[v1.0.1]]**: Release notes for version 1.0.1 (Visual Stepper, Cancellation Engine, Toast Notifications, Playwright E2E).
@@ -144,6 +147,5 @@ graph TD
 ## ⚡ Quick Reference
 
 - **Author & Publisher**: Dan Joseph Ortega (© 2026 Dan Joseph Ortega. All rights reserved.)
-- **Application Repository**: `C:\Users\danjo\OneDrive\CVSU GENERATORS` (`DrinkBoooz/cvsu-generators`)
-- **Active Development Branch**: `dev`
-- **Documentation Vault**: `C:\Users\danjo\OneDrive\cvsu-generator_documentation` (Companion workspace repository, Git-tracked)
+- **Application Repository**: `DrinkBoooz/cvsu-generators` (local working repository, active branch `dev`)
+- **Documentation Vault**: `DrinkBoooz/cvsu-generator_documentation` (companion workspace repository, active branch `dev`)

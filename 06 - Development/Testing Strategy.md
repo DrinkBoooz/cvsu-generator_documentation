@@ -6,7 +6,7 @@ tags:
   - pytest
   - playwright
 status: active
-last_modified: 2026-10-15
+last_modified: 2026-11-05
 source_of_truth:
   - tests/
   - tests/test_golden_parity.py
@@ -27,11 +27,14 @@ source_of_truth:
 Comprehensive testing philosophy and automated test suites for the **CvSU Document Generator**.
 
 Related notes:
+
 - [[CvSU Document Generator MOC]]
 - [[Development Workflow]]
 - [[Build & Packaging]]
 - [[UI Architecture]]
 - [[PyWebView Bridge]]
+- [[HIG & UX Audit]]
+- [[Documentation & Skills Audit]]
 
 ---
 
@@ -70,35 +73,44 @@ graph TD
     Vault --> T10["test_obsidian_vault_integrity.py"]
 ```
 
-
 ### 1. Fast Unit & Integration Testing
+
 ```bash
 pytest tests/ -k "not test_playwright"
 ```
+
 Runs automated unit tests covering parser edge cases, name shrinking thresholds, schedule tokenization, and UI consistency checks in under 20 seconds.
 
 ### 2. UI Consistency & Bridge Mock Testing (`test_ui_consistency.py`, `test_executable_test_api_bindings.py`)
+
 Validates that:
+
 - All step titles and button action names in `ui.html` match `executable_test/README.md`.
 - All `getElementById` calls in JavaScript exist in `ui.html`.
 - Release version badge in header matches the expected current release.
 - Python API mixin methods correctly resolve to JavaScript window binding properties (`window.pywebview.api`).
 
 ### 3. UI Asset Resilience & Transport Testing (`tests/test_ui_asset_resilience.py`)
+
 Registered under the custom `@pytest.mark.desktop_integration` marker in `pytest.ini`. Validates:
+
 - **Critical Inline Failsafe**: Asserts that `ui.html` contains the inline `<style>.d-none { display: none !important; }</style>` in `<head>`.
 - **CSS Architecture Coverage**: Verifies that `.d-none` is defined in `base.css`, component styles reside in `components.css`, and `drawers.css` maintains isolated rules.
 - **URI Transport Resolution**: Confirms that document URLs resolve to explicit `file:///` URIs rather than `http://localhost`.
 - **Lifecycle Sentinels**: Verifies that `app.js` defines `bootstrapApp()` and inspects `document.readyState`.
 
 ### 4. Diagnostic Hook & Probe Testing (`tests/test_diagnostic_probe.py`)
+
 Validates the diagnostic tracing subsystem in `executable_test/main.py`:
+
 - **Zero-I/O Fast Path**: Asserts that `on_request` and `on_response` callbacks perform zero synchronous filesystem `open()` calls and zero JSON serialization.
 - **Callback Signature Conformance**: Asserts that `on_response(response)` accepts exactly one argument matching PyWebView 6.2.1 dispatch and extracts `response.status_code`.
 - **Production Dormancy**: Verifies that when `CVSU_DIAGNOSTIC_MODE` is unset or `"0"`, diagnostic listeners and flusher threads are not installed.
 
 ### 5. Playwright UI Browser Testing
+
 Validates the user interface within a real browser engine, testing file drag-and-drop ingestion, stepper navigation, theme switching performance, and modal interaction:
+
 ```bash
 # Browser prerequisite: install Chromium binary
 python -m playwright install chromium
@@ -106,21 +118,27 @@ python -m playwright install chromium
 # Execute complete Playwright UI test suite
 pytest tests/test_playwright_*.py
 ```
+
 > [!NOTE]
 > **Separation of Testing Concerns**:
 > Playwright UI tests run in headless Chromium against the mock bridge (`MOCK_API_INIT_SCRIPT`). They are strictly separate from native desktop pywebview lifecycle testing.
 
 ### 6. Native Desktop PyWebView Lifecycle Testing (`tests/test_executable_lifecycle.py`)
+
 Validates actual native `pywebview` window creation, WinForms thread dispatch, event loops, and clean termination without hanging threads or orphaned processes.
 
 ### 7. PyInstaller Build & Packaged Smoke Tests (`test_pe_version_info.py`, `test_packaged_executable_smoke.py`)
+
 Validates the executable packaging output:
+
 - Ensures the generated `CvSU Gen.exe` contains the correct FileVersion, ProductVersion, and Copyright metadata.
 - Validates the PE (Portable Executable) headers using `pefile`.
 - Verifies packaged executable live launch, 2-second startup stability, and process tree termination.
 
 ### 8. Dependency Architecture & Manifest Testing (`tests/test_dependency_manifests.py`)
+
 Validates that:
+
 - All four manifests (`requirements-runtime.txt`, `requirements-test.txt`, `requirements-build.txt`, `requirements.txt`) and `executable_test/requirements-build.txt` exist.
 - All production third-party imports in `modules/` and `executable_test/` map via explicit `IMPORT_TO_DIST` to packages declared in `requirements-runtime.txt`.
 - All direct package declarations in runtime, test, and build manifests use exact pins (`==`), while aggregate `requirements.txt` contains `-r` forwarding lines.
@@ -130,13 +148,17 @@ Validates that:
 - `executable_test/requirements-build.txt` forwards to `../requirements-build.txt`, validated via static path resolution and pip dry-run direct-requirement / forwarding-manifest validation (`pip install --dry-run --no-deps`).
 
 ### 9. Obsidian Documentation Vault Integrity (`test_obsidian_vault_integrity.py`)
+
 Validates that all documentation notes in `cvsu-generator_documentation`:
+
 - Exist in their required folders (`00` to `06`).
 - Contain valid YAML frontmatter (`title`, `status`, `last_modified`, `source_of_truth`).
 - Have valid wikilinks with zero broken targets.
 
 ### 10. Packaged Executable Theme Diagnostics (`tests/test_packaged_executable_theme_diag.py`)
+
 Validates the compiled `CvSU Gen.exe` runtime host environment:
+
 - Spawns the real frozen PyInstaller binary with `CVSU_THEME_DIAGNOSTIC=1` and `CVSU_DIAGNOSTIC_EXIT=1`.
 - Verifies native `edgechromium` WinForms renderer and Evergreen WebView2 Runtime (`>= 110`, active `154.0.4258.37`).
 - Validates full promise resolution lifecycle (`updateCallbackDone`, `ready`, `finished`).
@@ -144,7 +166,9 @@ Validates the compiled `CvSU Gen.exe` runtime host environment:
 - Diagnoses host accessibility integration (`prefers-reduced-motion: reduce` synchronized with Windows `SPI_GETCLIENTAREAANIMATION`).
 
 ### 11. Accessibility Settings & Precedence Testing (`tests/test_accessibility_settings.py`)
+
 Validates the accessibility settings architecture across UI markup, CSS tokens, JavaScript runtime resolution, and headless Playwright browser interactions:
+
 - **Markup & ARIA Semantics**: Asserts `#cfgTabAccessibility`, `#cfgPaneAccessibility`, `#accMotionSelect`, `#accTransparencySelect`, and associated `<label for="...">` and `.setting-desc` descriptions exist with correct accessible names, options, and captions.
 - **CSS Surface Overrides**: Asserts that `modals.css` defines `[data-acc-transparency="reduce"]` with `backdrop-filter: none !important` and solid opaque background tokens on all primary glass containers.
 - **Precedence Resolution Matrix**: Verifies all combinations of system preferences (`no-preference` vs `reduce`) and app settings (`system`, `reduce`, `full`/`glass`) using simulated DOM and localStorage environments.
@@ -157,15 +181,20 @@ Validates the accessibility settings architecture across UI markup, CSS tokens, 
 - **Dynamic Media-Query Listener**: Emulates runtime changes from `no-preference` to `reduce` while the app is running to confirm `data-acc-motion` updates without page refresh.
 - **Multi-Viewport Responsive Verification**: Parametrized Playwright tests across `880×640`, `1120×780`, `768×600`, and `375×667` verify zero horizontal overflow (`scrollWidth <= clientWidth`) and ensure select controls remain fully visible and usable.
 - **Packaged Diagnostic Telemetry**: `tests/test_packaged_executable_theme_diag.py` asserts top-level diagnostic telemetry distinguishes `storedMotionPreference`, `effectiveMotionPreference`, `storedTransparencyPreference`, `effectiveTransparencyPreference`, `systemReducedMotion`, and `systemReducedTransparency`.
+
 ### 12. Golden-Master Verification & Structural Parity Testing (`tests/test_golden_parity.py`)
+
 Validates generated Word (.docx) and Attendance documents against preserved golden-master fixtures in `tests/fixtures/golden_outputs/`:
+
 - **Low-Level OpenXML Topology**: Inspects `<w:tbl>`, `<w:tr>`, `<w:tc>`, and `<w:numPr>` cell matrices and verifies row/column parity.
 - **Document & Header Story Streams**: Validates paragraphs across body and header stories (`word/header*.xml`), ensuring institutional metadata, instructor identity, and course details are populated.
 - **Deterministic Golden-Master Comparison**: Verifies that newly generated CEIT forms and month-by-month attendance sheets match the exact structural schema and student rows of `tests/fixtures/golden_outputs/`.
 - **Placeholder Hygiene**: Programmatically asserts that no raw template tags (e.g., `<INSTRUCTOR>`, `{{TAG}}`) remain unpopulated.
 
 ### 13. Deterministic Template Analysis & Grid Normalization (`tests/test_deterministic_template_analyzer.py`)
+
 Validates the dynamic template introspection engine in `modules/parsers/`:
+
 - **OpenXML 2D Grid Normalization (`DocxGridTable`)**: Tests 2D virtual coordinate grid mapping across complex `<w:gridSpan>` and `<w:vMerge>` cells, asserting proper root/continuation handling and duplicate write prevention.
 - **Semantic Slot Anchoring**: Verifies deterministic discovery of metadata slots via four anchoring modes: `cell_right`, `cell_below`, `colon_value`, and `placeholder`.
 - **Repeating Table Topology**: Verifies dynamic table classification into `STUDENT_ROSTER`, `ATTENDANCE_MONTH`, or `UNKNOWN`, detecting student name/number columns and dynamic row insertion points.
@@ -174,10 +203,51 @@ Validates the dynamic template introspection engine in `modules/parsers/`:
 - **Manifest Serialization & Checksums**: Tests `TemplateManifest` serialization/deserialization and deterministic SHA-256 fingerprinting.
 
 ### 14. Dynamic Document Renderer Resilience & Golden Parity (`tests/test_dynamic_renderer_resilience.py`)
+
 Validates the universal rendering engine in `modules/generators/dynamic_renderer.py`:
+
 - **End-to-End Golden Parity**: Asserts 100% byte and structural parity between documents rendered via `DynamicDocumentRenderer` and legacy static generators.
 - **Structural Perturbation Resilience**: Exercises dynamic rendering against templates modified with prepended paragraphs and decoy tables, proving zero hardcoded index dependencies.
 - **Style Preservation**: Asserts run-level font family names, bold/italic flags, cell background shading, and `<w:numPr>` list numbering are preserved in generated outputs.
 - **Dynamic Font Scaling Ladder**: Validates that long student names automatically scale according to length rules (`<= 30` chars -> 8pt, `31-35` chars -> 7pt, `> 35` chars -> 6pt).
 - **Excel Dynamic Rendering**: Tests dynamic row injection and formula shifting for Excel grading sheets.
 
+### 15. Targeted Phase 7 UI Regression Suite & Phase 8 Vault Integrity Record (November 2026)
+
+In November 2026, regression verification was formalized for the Hybrid Guided Batch Workbench and Obsidian knowledge vault.
+
+#### A. Targeted Phase 7 UI Regression Suite
+
+Executed against the redesigned frontend components and Playwright integration suites:
+
+```powershell
+pytest tests/test_ui_consistency.py tests/test_scroll_aware_dock.py tests/test_playwright_accessibility.py tests/test_playwright_roster_mapping.py tests/test_playwright_e2e.py tests/test_pe_version_info.py tests/test_playwright_settings_modal.py -v
+```
+
+Exact Test Suite Execution Grouping:
+
+| Test File                           | Passed | Focus Area                                                             |
+| :---------------------------------- | :----: | :--------------------------------------------------------------------- |
+| `test_ui_consistency.py`            |   6    | Readme contract, element IDs, semester workspaces, slot mapper DOM     |
+| `test_scroll_aware_dock.py`         |   1    | Scroll-padding clearance (SC 2.4.11) and status dock visibility        |
+| `test_playwright_accessibility.py`  |   8    | Focus trap cycling, Escape handlers, Axe-core scan, keyboard dropzones |
+| `test_playwright_roster_mapping.py` |   2    | Column mapping modal, dragover events, incomplete filename fallback    |
+| `test_playwright_e2e.py`            |   11   | Happy-path 6-stage navigation, single-active-stage, cancellation       |
+| `test_pe_version_info.py`           |   5    | Version 1.1.0 metadata, PE copyright headers, Authenticode config      |
+| `test_playwright_settings_modal.py` |   3    | Modal geometry, sticky header scroll, generation readiness             |
+| **Total**                           | **36** | **All 36 Passed in 43.88s (100% Pass Rate)**                           |
+
+> [!NOTE] Scope Notice — Targeted UI Regression Subset
+> This execution represents the **targeted Phase 7 UI regression suite**. It specifically exercises frontend markup, stepper navigation, dialog modality, and accessibility compliance. It is not the full project test suite (which includes document generation engines, dynamic renderer perturbation, and calendar resolver edge cases).
+
+#### B. Phase 8 Obsidian Vault Integrity Verification
+
+Executed to validate Obsidian Markdown structural integrity and knowledge graph connectivity:
+
+```powershell
+pytest tests/test_obsidian_vault_integrity.py -v
+```
+
+- **Result**: **4 / 4 Passed (100%)** in 0.53s.
+- **Coverage**: Structure existence, YAML frontmatter compliance, wikilink resolution (100% resolved across 31 notes), and MOC category coverage.
+- Detailed audit logs and agent skills census are documented in [[Documentation & Skills Audit]].
