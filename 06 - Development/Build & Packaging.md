@@ -6,10 +6,11 @@ tags:
   - pyinstaller
   - codesign
 status: active
-last_modified: 2026-09-18
+last_modified: 2026-11-09
 source_of_truth:
   - executable_test/build.bat
   - executable_test/CvSU Gen.spec
+  - executable_test/CvSU Gen.exe.config
   - executable_test/file_version_info.txt
   - executable_test/requirements-build.txt
   - requirements-build.txt
@@ -62,6 +63,7 @@ The standalone binary executes without requiring a local Python interpreter, but
 - **Python / Python Packages**: None required on the target machine for the packaged executable. The Python runtime and application packages are embedded in `CvSU Gen.exe`.
 - **Microsoft Edge WebView2 Evergreen Runtime**: Required host prerequisite. WebView2 is included with Windows 11; Microsoft documents Windows 10 v1803+ with the November 2022 update as the pre-installed baseline. However, some Windows 10, LTSC, managed, or clean systems may lack the Runtime. The packaged application does not bundle an automatic WebView2 installer, and no explicit application-level runtime detector was verified in the current source.
 - **.NET Framework 4.7.2+ Project Baseline**: Supported Windows baseline required for the Python.NET (`pythonnet`) `System.Windows.Forms` native desktop host and OLE drag-and-drop subsystem (`executable_test/native/dnd.py`). While Python.NET itself supports older runtimes and pywebview 6.2+ has a CoreCLR fallback, CvSU Generators' own `System.Windows.Forms` / native DnD path has not been established as CoreCLR-compatible; .NET Framework 4.7.2+ is the repository's supported baseline.
+- **.NET Host Configuration (`CvSU Gen.exe.config`)**: The executable bundle embeds and places a `CvSU Gen.exe.config` file adjacent to `CvSU Gen.exe`. This specifies `<loadFromRemoteSources enabled="true"/>`, instructing the .NET CLR to grant full trust to assemblies loaded from remote sources, downloaded ZIP archives with Mark of the Web (`Zone.Identifier`), or cloud-synced folders (e.g. Microsoft OneDrive), preventing runtime assembly resolution failure (`0x80131515`).
 - **Office Software**: Microsoft Word & Excel or compatible office suite (only needed for opening/editing generated DOCX/XLSX files).
 - **Packaging Manifest (`requirements-build.txt`)**: Bundles `pyinstaller==6.22.2` alongside core production runtime dependencies. `executable_test/requirements-build.txt` acts as a forwarding manifest (`-r ../requirements-build.txt`). Extraneous packages are strictly excluded from packaging. Forwarding manifest resolution is validated via pip dry-run direct-requirement / forwarding-manifest validation (`pip install --dry-run --no-deps -r executable_test/requirements-build.txt`).
 
